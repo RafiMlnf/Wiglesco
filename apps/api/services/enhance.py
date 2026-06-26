@@ -81,6 +81,7 @@ class EnhancementService:
             "normal":    self._style_normal,
             "nishika":   self._style_nishika,
             "analog":    self._style_analog,
+            "retro_warm": self._style_retro_warm,
             "cinematic": self._style_cinematic,
             "glitch":    self._style_glitch,
             "cyberpunk": self._style_cyberpunk,
@@ -149,6 +150,54 @@ class EnhancementService:
         arr = arr - arr * hi_w * 0.05
 
         arr = np.clip(arr * 255.0, 0, 255)
+        return Image.fromarray(arr.astype(np.uint8))
+
+    # ── Style: Retro Warm (based on user's reference photo) ──────
+    def _style_retro_warm(self, img: Image.Image) -> Image.Image:
+        """
+        Retro warm analog look:
+        1. Faded shadows (lift blacks).
+        2. Soft green-teal shadow cast.
+        3. Creamy/amber midtones and highlights.
+        4. Medium organic film grain.
+        5. Vignetting and subtle chromatic aberration.
+        """
+        arr = np.array(img).astype(np.float32)
+
+        # 1. Lift blacks (shadow floor 0 -> ~20)
+        shadow_lift = 20.0
+        arr = arr / 255.0
+        arr = shadow_lift / 255.0 + arr * (1.0 - shadow_lift / 255.0)
+
+        # Calculate luminance
+        luma = 0.2126 * arr[:, :, 0] + 0.7152 * arr[:, :, 1] + 0.0722 * arr[:, :, 2]
+
+        # Weights
+        shadow_w = (np.clip(1.0 - luma / 0.35, 0.0, 1.0) ** 1.5)[:, :, np.newaxis]
+        mid_w = (np.clip(1.0 - np.abs(luma - 0.5) / 0.35, 0.0, 1.0) ** 1.5)[:, :, np.newaxis]
+
+        # 2. Shadow green/teal push (R-, G+, B- to shift shadows to dark olive/teal)
+        shadow_shift = np.zeros_like(arr)
+        shadow_shift[:, :, 0] -= 0.070  # R-
+        shadow_shift[:, :, 1] += 0.085  # G+
+        shadow_shift[:, :, 2] -= 0.030  # B-
+        arr = arr + shadow_shift * shadow_w
+
+        # 3. Midtone warm amber push (R+ G+ B-)
+        warm_shift = np.zeros_like(arr)
+        warm_shift[:, :, 0] += 0.050  # R+ (warmer red/orange)
+        warm_shift[:, :, 1] += 0.025  # G+ (gentle green warmth)
+        warm_shift[:, :, 2] -= 0.080  # B- (yellow push)
+        arr = arr + warm_shift * mid_w
+
+        # Convert back to [0, 255]
+        arr = np.clip(arr * 255.0, 0, 255)
+
+        # 4. Lens & Texture elements
+        arr = self._add_chromatic_aberration(arr, strength=2)
+        arr = self._add_film_grain(arr, intensity=14.0)
+        arr = self._add_vignette(arr, strength=0.35)
+
         return Image.fromarray(arr.astype(np.uint8))
 
     # ── Style: Cinematic ─────────────────────────────────────────

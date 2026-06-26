@@ -19,11 +19,12 @@ interface HistoryItem {
   style: string;
 }
 
-const STYLES = ["normal", "nishika", "analog", "cinematic", "glitch", "cyberpunk"];
+const STYLES = ["normal", "nishika", "analog", "retro_warm", "cinematic", "glitch", "cyberpunk"];
 const STYLE_LABELS: Record<string, string> = {
   normal: "Normal",
   nishika: "Nishika N8000",
   analog: "Analog Film",
+  retro_warm: "Retro Warm",
   cinematic: "Cinematic",
   glitch: "Glitch",
   cyberpunk: "Cyberpunk",

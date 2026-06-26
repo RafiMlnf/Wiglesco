@@ -1,159 +1,128 @@
-# WiggleAI 🎬
+# WiggleAI
 
-> **AI-powered Wiggle 3D / Stereogram / Lenticular photo effect app**  
-> Transform any single photo into a stunning animated 3D GIF — inspired by the iconic Nishika N8000 4-lens camera.
+An AI-powered Wiggle 3D, Stereogram, and Lenticular photo effect application. This project transforms a single photo into an animated 3D perspective parallax video, simulating the iconic look of 4-lens film cameras like the Nishika N8000.
 
----
-
-## ✨ How it Works
-
-```
-Photo (1 image) → Depth AI → Novel View Synthesis → Inpaint → Enhance → Wiggle 3D GIF
-```
-
-Unlike simple image blending, WiggleAI uses a chain of AI models to generate photorealistic parallax frames from a single photo.
+![Turborepo](https://img.shields.io/badge/Turborepo-EF4444?style=flat-square&logo=turborepo&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js_15-000000?style=flat-square&logo=nextdotjs&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)
+![CUDA](https://img.shields.io/badge/CUDA-76B900?style=flat-square&logo=nvidia&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)
 
 ---
 
-## 🗂 Project Structure
+## Technical Overview
 
-```
+WiggleAI processes images through a custom multi-stage pipeline:
+1. **Depth Estimation:** Extracts pixel-level distance mapping from a single source image.
+2. **Novel View Synthesis:** Simulates multi-view perspective shift using horizontal depth warping.
+3. **Inpainting / Border Extension:** Fills disocclusion gaps on the image boundaries.
+4. **Post-Processing / Color Grading:** Simulates film properties (vignette, film grain, chromatic aberration, and retro-warm tinting).
+5. **Frame Assembly:** Sequences individual frames into a looping MP4, WebP, or GIF.
+
+---
+
+## Project Structure
+
+```text
 wiggleai/
 ├── apps/
-│   ├── web/        # Next.js 15 frontend (TypeScript + Tailwind)
-│   └── api/        # FastAPI backend (Python 3.12)
+│   ├── web/        # Next.js 15 frontend application
+│   └── api/        # FastAPI backend service
 ├── ml/
-│   ├── scripts/    # Download models, prototype scripts
-│   └── notebooks/  # Jupyter experiments
+│   ├── scripts/    # Model downloads and CLI testing scripts
+│   └── notebooks/  # Jupyter model experimentation
 ├── infra/
-│   ├── docker/     # Dockerfiles
+│   ├── docker/     # Container configurations
 │   ├── k8s/        # Kubernetes manifests
-│   └── terraform/  # Infrastructure as Code
+│   └── terraform/  # Cloud infrastructure as code
 └── docker-compose.yml
 ```
 
 ---
 
-## 🚀 Quick Start (Development)
+## Local Development Setup
+
+For local GPU execution on consumer hardware (such as GTX 1650 4GB VRAM), the application runs in Direct Local Mode. This bypasses Celery, Redis, and Postgres, executing the pipeline synchronously within the FastAPI server.
 
 ### Prerequisites
-- Node.js 20+
-- Python 3.12+
-- Docker + Docker Compose
-- NVIDIA GPU (optional, for AI processing)
+* Node.js 20 or higher
+* Python 3.11.x or 3.12.x
+* NVIDIA GPU with CUDA Toolkit installed (for hardware-accelerated inference)
 
-### 1. Clone & Setup
+### 1. Backend Service Setup
 
-```bash
-git clone https://github.com/yourname/wiggleai.git
-cd wiggleai
+Navigate to the API folder, set up the Python virtual environment, install dependencies, and run the FastAPI server:
 
-# Copy env template
-cp .env.example .env
-# Edit .env with your values
-```
-
-### 2. Start Infrastructure
-
-```bash
-# Start Postgres + Redis
-docker compose up postgres redis -d
-```
-
-### 3. Start Backend
-
-```bash
+```powershell
+# Change directory
 cd apps/api
-python -m venv venv
-venv\Scripts\activate   # Windows
-# source venv/bin/activate  # Linux/Mac
 
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment (Windows)
+.\venv\Scripts\activate
+
+# Install required packages
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+
+# Start backend server
+$env:PYTHONUTF8 = "1"
+python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-API docs: http://localhost:8000/docs
+The API endpoints and interactive documentation will be available at: http://localhost:8000/docs
 
-### 4. Start Frontend
+### 2. Frontend Application Setup
+
+In a new terminal window, install npm packages and start the Next.js development server:
 
 ```bash
-cd apps/web
-npm install
+# From the project root
 npm run dev
 ```
 
-Web app: http://localhost:3000
-
-### 5. Start Celery Worker (AI Processing)
-
-```bash
-cd apps/api
-celery -A workers.tasks:celery_app worker --loglevel=info --concurrency=1
-```
-
-### 6. Monitor Jobs (Optional)
-
-```bash
-cd apps/api
-celery -A workers.tasks:celery_app flower --port=5555
-```
-
-Flower dashboard: http://localhost:5555
+The web editor interface will be available at: http://localhost:3000
 
 ---
 
-## 🤖 AI Pipeline Prototype (Phase 1 Test)
+## Pipeline and Model Configurations
 
-Test the pipeline from command line without running the full stack:
+The backend utilizes Depth-Anything-V2 models. Depending on your system VRAM, configure the model sizes using environmental variables inside `apps/api/.env`:
 
-```bash
-cd apps/api
-pip install -r requirements.txt
+| Model | Resource Size | Default Target | Purpose |
+|---|---|---|---|
+| Depth Anything V2 Small | 1.3 GB | Low-VRAM (GTX 1650) | Depth estimation |
+| Depth Anything V2 Base | 2.5 GB | Mid-VRAM | Depth estimation |
+| Real-ESRGAN x4plus | 67 MB | Optional | Resolution enhancement |
 
-python ../../ml/scripts/prototype_wiggle.py \
-  --input your_photo.jpg \
-  --output output.gif \
-  --frames 4 \
-  --strength 0.6 \
-  --style nishika
-```
-
----
-
-## 🤖 Download AI Models
-
-```bash
-python ml/scripts/download_models.py
-```
-
-Required models (total ~40GB with all models):
-| Model | Size | Purpose |
-|---|---|---|
-| Depth Anything V2 Large | 1.3 GB | Depth estimation |
-| Real-ESRGAN x4plus | 67 MB | Upscaling |
-| Stable Video Diffusion | 25 GB | Novel view synthesis |
-| SDXL Inpaint | 12 GB | Disocclusion fill |
-
-> 💡 For development/testing, only Depth Anything V2 is required — the pipeline falls back to classical depth warp without SVD.
+### Low-VRAM Optimization Profile
+On systems with 4GB VRAM:
+* SVD (Stable Video Diffusion) synthesis is disabled, falling back to Classical Depth Warping.
+* SDXL Inpaint is bypassed, falling back to an Edge-Extend fill method.
+* Upscaling via Real-ESRGAN is disabled by default to maintain healthy VRAM headroom.
 
 ---
 
-## 🛣 Roadmap
+## Project Roadmap
 
 | Phase | Description | Status |
 |---|---|---|
-| 0 | Setup & Foundation | ✅ Done |
-| 1 | AI Pipeline Prototype | 🔄 In Progress |
-| 2 | Backend API | ⏳ Pending |
-| 3 | Frontend Editor UI | ⏳ Pending |
-| 4 | Full Integration | ⏳ Pending |
-| 5 | Gallery & Social | ⏳ Pending |
-| 6 | Monetization | ⏳ Pending |
-| 7 | API Platform | ⏳ Pending |
-| 8 | Production Launch | ⏳ Pending |
+| Phase 0 | Setup and Foundation | Completed |
+| Phase 1 | AI Pipeline Prototype | Completed |
+| Phase 2 | Backend API Foundation | Completed |
+| Phase 3 | Frontend Editor UI | In Progress |
+| Phase 4 | Pipeline Integration | Pending |
+| Phase 5 | Gallery and Social Sharing | Pending |
+| Phase 6 | Monetization | Pending |
+| Phase 7 | API Developer Platform | Pending |
+| Phase 8 | Production Release | Pending |
 
 ---
 
-## 📄 License
+## License
 
-MIT License — see [LICENSE](LICENSE)
+This project is licensed under the MIT License. See the LICENSE file for details.
