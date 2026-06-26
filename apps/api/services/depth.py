@@ -46,7 +46,7 @@ class DepthEstimationService:
             task="depth-estimation",
             model=model_id,
             device=0 if self.device == "cuda" else -1,
-            torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
+            dtype=torch.float16 if self.device == "cuda" else torch.float32,
             cache_dir=settings.MODEL_CACHE_DIR,
         )
         if self.device == "cuda" and torch.cuda.is_available():
@@ -73,15 +73,27 @@ class DepthEstimationService:
         output = self._pipe(image)
         depth = output["predicted_depth"]
 
+        # Convert tensor to numpy, squeeze any extra batch/channel dims
+        if hasattr(depth, "detach"):
+            depth = depth.detach()
+        if hasattr(depth, "cpu"):
+            depth = depth.cpu()
         if hasattr(depth, "numpy"):
             depth = depth.numpy()
-        elif hasattr(depth, "cpu"):
-            depth = depth.cpu().numpy()
 
-        # Normalize to [0, 1]
-        depth = (depth - depth.min()) / (depth.ptp() + 1e-8)
+        # Remove batch/channel dims: (1,H,W) or (1,1,H,W) -> (H,W)
+        depth = np.squeeze(depth)
+        if depth.ndim != 2:
+            raise ValueError(f"Unexpected depth map shape after squeeze: {depth.shape}")
 
-        # Resize to match input image
+        logger.debug(f"Raw depth shape: {depth.shape}, range [{depth.min():.3f}, {depth.max():.3f}]")
+
+        # Normalize to [0, 1] — use max-min, ptp() removed in numpy 2.x
+        d_range = float(depth.max() - depth.min())
+        depth = (depth - depth.min()) / (d_range + 1e-8)
+        depth = depth.astype(np.float32)
+
+        # Resize to match input image dimensions
         from PIL import Image as PILImage
         depth_img = PILImage.fromarray((depth * 255).astype(np.uint8))
         depth_img = depth_img.resize(image.size, PILImage.BILINEAR)

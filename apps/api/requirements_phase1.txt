@@ -1,0 +1,27 @@
+# ===================================================
+# WiggleAI — Phase 1 Requirements (localhost testing)
+# Python 3.11 + CUDA 11.8 (GTX 1650)
+# ===================================================
+
+# --- Install PyTorch FIRST with: ---
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+
+# Image Processing
+Pillow>=10.0
+numpy>=1.24
+opencv-python>=4.8
+imageio>=2.31
+imageio-ffmpeg>=0.4.9
+
+# AI / ML
+transformers>=4.40
+diffusers>=0.27
+accelerate>=0.27
+safetensors>=0.4
+huggingface-hub>=0.22
+timm>=0.9
+
+# Config & Logging
+pydantic-settings>=2.0
+python-dotenv>=1.0
+loguru>=0.7

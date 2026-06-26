@@ -44,26 +44,31 @@ def run_prototype(input_path: str, output_path: str, num_frames: int, strength: 
     print(f"📐 Image size: {W}x{H}")
 
     # Step 1: Depth estimation
-    print("🌊 [1/4] Estimating depth...")
+    print("[1/4] Estimating depth (loading Depth Anything V2 Small - first run downloads ~300MB)...")
+    depth_map = None
     try:
         from services.depth import DepthEstimationService
         depth_svc = DepthEstimationService()
+        # Must load model before calling estimate()
+        asyncio.run(depth_svc.load())
         depth_map = asyncio.run(depth_svc.estimate(image))
-        print(f"   ✅ Depth map shape: {depth_map.shape}, range: [{depth_map.min():.2f}, {depth_map.max():.2f}]")
+        print(f"   OK Depth map: {depth_map.shape}, range [{depth_map.min():.2f}, {depth_map.max():.2f}]")
     except Exception as e:
-        print(f"   ⚠️ Depth model unavailable ({e}), using synthetic gradient depth")
-        x = np.linspace(0, 1, W)
-        y = np.linspace(0, 1, H)
-        xx, yy = np.meshgrid(x, y)
-        depth_map = (1 - yy).astype(np.float32)  # Simple top=far, bottom=near
+        print(f"   WARNING: Depth model failed ({e})")
+        print("   Using synthetic gradient depth (top=far, bottom=near)")
+        yy = np.linspace(0, 1, H)[:, np.newaxis] * np.ones((H, W))
+        depth_map = (1 - yy).astype(np.float32)
 
     # Save depth visualization
-    depth_vis_path = output_path.replace(".gif", "_depth.png")
     import cv2
-    depth_norm = ((depth_map - depth_map.min()) / (depth_map.ptp() + 1e-8) * 255).astype(np.uint8)
+    base = str(Path(output_path).with_suffix(''))
+    depth_vis_path = base + "_depth.png"
+    # np.ptp() removed in numpy 2.x, use (max - min) instead
+    d_range = depth_map.max() - depth_map.min()
+    depth_norm = ((depth_map - depth_map.min()) / (d_range + 1e-8) * 255).astype(np.uint8)
     depth_colored = cv2.applyColorMap(depth_norm, cv2.COLORMAP_MAGMA)
     cv2.imwrite(depth_vis_path, depth_colored)
-    print(f"   💾 Depth map saved: {depth_vis_path}")
+    print(f"   Depth map saved: {depth_vis_path}")
 
     # Step 2: Generate frames
     print(f"🎨 [2/4] Generating {num_frames} parallax frames...")
