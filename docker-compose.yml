@@ -1,0 +1,143 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL Database ──────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: wiggleai_db
+    environment:
+      POSTGRES_DB: wiggleai
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wiggleai_net
+
+  # ── Redis ────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: wiggleai_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wiggleai_net
+
+  # ── FastAPI Backend ──────────────────────────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: ../../infra/docker/Dockerfile.api
+    container_name: wiggleai_api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/wiggleai
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+      - model_cache:/app/ml/models
+      - /tmp/wiggleai:/tmp/wiggleai
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - wiggleai_net
+
+  # ── Celery Worker (AI Processing) ───────────────────────────
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: ../../infra/docker/Dockerfile.api
+    container_name: wiggleai_worker
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/wiggleai
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - DEVICE=cuda  # Change to 'cpu' if no GPU
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+    volumes:
+      - ./apps/api:/app
+      - model_cache:/app/ml/models
+      - /tmp/wiggleai:/tmp/wiggleai
+    command: celery -A workers.tasks:celery_app worker --loglevel=info --concurrency=1 -Q default
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - wiggleai_net
+
+  # ── Celery Flower (Monitor) ──────────────────────────────────
+  flower:
+    build:
+      context: ./apps/api
+      dockerfile: ../../infra/docker/Dockerfile.api
+    container_name: wiggleai_flower
+    ports:
+      - "5555:5555"
+    command: celery -A workers.tasks:celery_app flower --port=5555
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    networks:
+      - wiggleai_net
+
+  # ── Next.js Frontend (Development) ──────────────────────────
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: ../../infra/docker/Dockerfile.web
+    container_name: wiggleai_web
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000
+    command: npm run dev
+    networks:
+      - wiggleai_net
+
+volumes:
+  postgres_data:
+  redis_data:
+  model_cache:
+
+networks:
+  wiggleai_net:
+    driver: bridge
