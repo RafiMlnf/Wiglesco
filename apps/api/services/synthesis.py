@@ -106,35 +106,59 @@ class NovelViewSynthesisService:
         img_array = np.array(image).astype(np.float32)
         H, W = img_array.shape[:2]
 
-        # Max pixel displacement: up to 6% of width
-        # GTX 1650 tip: classical warp is pure CPU/NumPy, zero VRAM used
-        max_disp = int(W * 0.06 * parallax_strength)
-
-        # Symmetric offsets — ping-pong friendly
-        offsets = np.linspace(-max_disp, max_disp, num_frames)
-
         # Smooth depth map slightly to reduce warping artifacts
         import cv2 as _cv2
         depth_smooth = _cv2.GaussianBlur(depth_map, (5, 5), 0)
 
+        # Map normalized depth [0, 1] to virtual Z values (Near = 1.0, Far = 2.5)
+        # Depth Anything V2: 1.0 is near, 0.0 is far
+        Z = 1.0 + (1.0 - depth_smooth) * 1.5
+
+        # Focal length (virtual camera) and center point
+        f = max(H, W) * 1.2
+        cx = W / 2.0
+        cy = H / 2.0
+
+        # Normalized coordinates relative to image center
+        norm_x = (np.arange(W, dtype=np.float32) - cx) / f
+        norm_y = (np.arange(H, dtype=np.float32) - cy) / f
+        map_norm_x, map_norm_y = np.meshgrid(norm_x, norm_y)
+
+        # Focus depth: dynamically set to mean depth of the image
+        # Objects at this depth will remain stationary, acting as the pivot/focal point
+        depth_mean = float(np.mean(depth_smooth))
+        Z_focus = 1.0 + (1.0 - depth_mean) * 1.5
+
+        # Max horizontal camera rotation angle (in radians): ~3.5 degrees at strength=1.0
+        max_theta = 0.06 * parallax_strength
+        thetas = np.linspace(-max_theta, max_theta, num_frames)
+
         frames = []
-        for offset in offsets:
-            # Depth-driven displacement: near objects shift more
-            disp_map = depth_smooth * offset  # Shape: (H, W)
+        for theta in thetas:
+            cos_t = np.cos(theta)
+            sin_t = np.sin(theta)
 
-            # Build remap coordinates
-            x_coords = np.arange(W, dtype=np.float32)
-            y_coords = np.arange(H, dtype=np.float32)
-            map_x, map_y = np.meshgrid(x_coords, y_coords)
+            # 3D coordinates relative to focus point
+            X = map_norm_x * Z
+            Z_rel = Z - Z_focus
 
-            map_x_shifted = (map_x + disp_map).astype(np.float32)
-            map_y_shifted = map_y.astype(np.float32)
+            # 3D Camera Rotation around Y-axis (horizontal orbit/POV rotation)
+            X_rot = X * cos_t - Z_rel * sin_t
+            Y_rot = map_norm_y * Z  # Y coordinate stays constant for horizontal rotation
+            Z_rot = X * sin_t + Z_rel * cos_t + Z_focus
 
-            # INTER_CUBIC gives sharper result than LINEAR for parallax
+            # Prevent division by zero or negative depth
+            Z_rot = np.maximum(Z_rot, 0.1)
+
+            # Project back to 2D image coordinates
+            map_x_shifted = (X_rot / Z_rot) * f + cx
+            map_y_shifted = (Y_rot / Z_rot) * f + cy
+
+            # Warp the image using INTER_CUBIC for clean, sharp edges
             warped = _cv2.remap(
                 img_array,
-                map_x_shifted,
-                map_y_shifted,
+                map_x_shifted.astype(np.float32),
+                map_y_shifted.astype(np.float32),
                 interpolation=_cv2.INTER_CUBIC,
                 borderMode=_cv2.BORDER_REPLICATE,
             )

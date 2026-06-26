@@ -108,7 +108,7 @@ if __name__ == "__main__":
     parser.add_argument("--frames", "-f", type=int, default=4, choices=[3,4,6,8], help="Number of frames")
     parser.add_argument("--strength", "-s", type=float, default=0.5, help="Parallax strength (0.1-1.0)")
     parser.add_argument("--fps", type=int, default=15, help="Frames per second for MP4/GIF output")
-    parser.add_argument("--style", default="normal", choices=["normal","nishika","vintage","cinematic","glitch","cyberpunk"])
+    parser.add_argument("--style", default="normal", choices=["normal","nishika","analog","cinematic","glitch","cyberpunk"])
     args = parser.parse_args()
 
     run_prototype(args.input, args.output, args.frames, args.strength, args.style, args.fps)

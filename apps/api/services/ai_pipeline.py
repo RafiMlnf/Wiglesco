@@ -110,6 +110,7 @@ class AIPipeline:
             }
         """
         start_time = time.time()
+        logger.info(f"🚀 AIPipeline started - job_id: {job_id}, style: {effect_style}, strength: {parallax_strength}, frames: {num_frames}, format: {export_format}, fps: {fps}")
         accumulated_progress = 0.0
         work_dir = Path(f"/tmp/wiggleai/{job_id}")
         work_dir.mkdir(parents=True, exist_ok=True)
@@ -233,6 +234,7 @@ class AIPipeline:
     def _save_depth_visualization(self, depth_map: np.ndarray, path: Path):
         """Save depth map as colorized PNG for visualization."""
         import cv2
-        depth_norm = ((depth_map - depth_map.min()) / (depth_map.ptp() + 1e-8) * 255).astype(np.uint8)
+        d_range = depth_map.max() - depth_map.min()
+        depth_norm = ((depth_map - depth_map.min()) / (d_range + 1e-8) * 255).astype(np.uint8)
         depth_colored = cv2.applyColorMap(depth_norm, cv2.COLORMAP_MAGMA)
         cv2.imwrite(str(path), depth_colored)

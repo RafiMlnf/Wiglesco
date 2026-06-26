@@ -1,49 +1,125 @@
 """
-WiggleAI — FastAPI Application Entry Point
+WiggleAI — FastAPI Application (Direct Local Mode)
+A simple, robust backend that runs entirely in-process on localhost.
+No Docker, Redis, Celery, Postgres, or Auth required.
 """
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
+import uuid
+import shutil
+import time
+from pathlib import Path
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from loguru import logger
 
 from core.config import settings
-from core.database import init_db
-from routers import auth, projects, processing, gallery, health
-from utils.logger import logger
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Startup and shutdown events."""
-    logger.info("🚀 Starting WiggleAI API...")
-    await init_db()
-    logger.info("✅ Database initialized")
-    yield
-    logger.info("🛑 Shutting down WiggleAI API...")
-
+from services.ai_pipeline import AIPipeline
 
 app = FastAPI(
-    title="WiggleAI API",
-    description="AI-powered Wiggle 3D / Stereogram photo effect generator",
+    title="WiggleAI API (Local Direct)",
+    description="Local version of WiggleAI running directly in-process",
     version="0.1.0",
-    lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
 )
 
-# ── Middleware ──────────────────────────────────────────────────
+# Enable CORS for localhost frontend development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# ── Routers ────────────────────────────────────────────────────
-app.include_router(health.router, tags=["Health"])
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
-app.include_router(projects.router, prefix="/api/v1/projects", tags=["Projects"])
-app.include_router(processing.router, prefix="/api/v1/process", tags=["Processing"])
-app.include_router(gallery.router, prefix="/api/v1/gallery", tags=["Gallery"])
+# Global pipeline instance
+pipeline = AIPipeline()
+
+@app.on_event("startup")
+async def startup():
+    logger.info("Initializing local AI pipeline...")
+    # Initialize all models (downloads Depth-Anything-V2-Small on first run)
+    await pipeline.initialize()
+    logger.info("Local WiggleAI pipeline initialized and ready.")
+
+# Ensure directories exist
+Path(settings.OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+# Mount static files so generated MP4s and Depth Maps are served directly
+app.mount("/outputs", StaticFiles(directory=settings.OUTPUT_DIR), name="outputs")
+
+class ProcessResponse(BaseModel):
+    status: str
+    output_url: str
+    depth_map_url: str
+    thumbnail_url: str
+    processing_time: float
+
+@app.post("/api/v1/process/direct", response_model=ProcessResponse)
+async def process_direct(
+    file: UploadFile = File(...),
+    num_frames: int = Form(default=4, ge=3, le=8),
+    parallax_strength: float = Form(default=0.5, ge=0.1, le=1.0),
+    effect_style: str = Form(default="normal"),
+    export_format: str = Form(default="mp4"),
+    fps: int = Form(default=15, ge=6, le=30),
+):
+    """
+    Direct synchronous endpoint for local GUI testing.
+    Uploads file -> Runs full pipeline -> Saves output -> Returns direct URLs.
+    """
+    if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+        raise HTTPException(status_code=400, detail="Invalid file format. Use JPEG, PNG, or WebP.")
+
+    job_id = str(uuid.uuid4())
+    logger.info(f"Processing local job {job_id} ({file.filename})")
+
+    # Create temporary directory for processing input
+    temp_dir = Path(settings.OUTPUT_DIR) / "temp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_input_path = temp_dir / f"{job_id}_{file.filename}"
+
+    try:
+        # Save uploaded file to temp path
+        with open(temp_input_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        # Run pipeline
+        # Our modified local StorageService saves files directly to settings.OUTPUT_DIR
+        # and returns their absolute local paths as output_url, depth_map_url, etc.
+        result = await pipeline.run(
+            image_path=str(temp_input_path),
+            job_id=job_id,
+            num_frames=num_frames,
+            parallax_strength=parallax_strength,
+            effect_style=effect_style,
+            export_format=export_format,
+            fps=fps,
+        )
+
+        # Convert local absolute paths from StorageService to browser-accessible static URLs
+        # StorageService saves files as settings.OUTPUT_DIR / remote_key.replace("/", "_")
+        # e.g., output path: D:\Coding\Stereogram\apps\api\outputs\jobs_{job_id}_output.mp4
+        output_filename = f"jobs_{job_id}_output.{export_format}"
+        depth_filename = f"jobs_{job_id}_depth_map.png"
+        thumbnail_filename = f"jobs_{job_id}_thumbnail.webp"
+
+        base_url = "http://localhost:8000/outputs"
+        
+        return ProcessResponse(
+            status="success",
+            output_url=f"{base_url}/{output_filename}",
+            depth_map_url=f"{base_url}/{depth_filename}",
+            thumbnail_url=f"{base_url}/{thumbnail_filename}",
+            processing_time=result["processing_time"],
+        )
+
+    except Exception as e:
+        logger.exception(f"Error during direct local process: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Cleanup temporary input file
+        if temp_input_path.exists():
+            temp_input_path.unlink()
+
+@app.get("/")
+async def root():
+    return {"message": "WiggleAI Direct Local API is running", "docs": "/docs"}

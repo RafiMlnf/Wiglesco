@@ -68,6 +68,7 @@ class EnhancementService:
 
     def _process_sync(self, frames, style, upscale):
         processed = []
+        logger.info(f"✨ EnhancementService: applying style '{style}' to {len(frames)} frames (upscale={upscale})")
         for frame in frames:
             frame = self._apply_style(frame, style)
             if upscale and self._esrgan:
@@ -79,7 +80,7 @@ class EnhancementService:
         handlers = {
             "normal":    self._style_normal,
             "nishika":   self._style_nishika,
-            "vintage":   self._style_vintage,
+            "analog":    self._style_analog,
             "cinematic": self._style_cinematic,
             "glitch":    self._style_glitch,
             "cyberpunk": self._style_cyberpunk,
@@ -102,18 +103,52 @@ class EnhancementService:
         arr[:, :, 2] = np.clip(arr[:, :, 2] * 0.96, 0, 255)  # B-
         return Image.fromarray(arr.astype(np.uint8))
 
-    # ── Style: Vintage ───────────────────────────────────────────
-    def _style_vintage(self, img: Image.Image) -> Image.Image:
+    # ── Style: Analog Film (pure color grade) ────────────────────
+    def _style_analog(self, img: Image.Image) -> Image.Image:
+        """
+        Analog/lomography color grading — no grain, no vignette, no overlays.
+        1. Lift blacks: shadow floor raised to ~18, giving faded film character.
+        2. Shadow teal-green push: R- G+ B+ in dark zones only.
+        3. Midtone warmth: R+ B- in mid tones only.
+        4. Highlight compression: subtle, keeps airy feel.
+        """
         arr = np.array(img).astype(np.float32)
-        arr = self._add_film_grain(arr, intensity=35)
-        arr = self._add_vignette(arr, strength=0.6)
-        # Desaturate partially
-        gray = np.mean(arr, axis=2, keepdims=True)
-        arr = arr * 0.5 + gray * 0.5
-        # Warm tone
-        arr[:, :, 0] = np.clip(arr[:, :, 0] * 1.1, 0, 255)
-        arr[:, :, 1] = np.clip(arr[:, :, 1] * 1.05, 0, 255)
-        arr[:, :, 2] = np.clip(arr[:, :, 2] * 0.85, 0, 255)
+
+        # 1. Lift blacks — shadow floor 0 → ~18
+        shadow_lift = 18.0
+        arr = arr / 255.0
+        arr = shadow_lift / 255.0 + arr * (1.0 - shadow_lift / 255.0)
+
+        # Luminance per pixel [0,1]
+        luma = 0.2126 * arr[:, :, 0] + 0.7152 * arr[:, :, 1] + 0.0722 * arr[:, :, 2]
+
+        # Shadow zone weight (strongest below luma 0.35)
+        shadow_w = np.clip(1.0 - luma / 0.35, 0.0, 1.0) ** 1.5
+        shadow_w = shadow_w[:, :, np.newaxis]
+
+        # Midtone zone weight (peaks at luma 0.5)
+        mid_w = np.clip(1.0 - np.abs(luma - 0.5) / 0.35, 0.0, 1.0) ** 1.5
+        mid_w = mid_w[:, :, np.newaxis]
+
+        # 2. Shadow green push (R-, G+, B- to push shadows to deep olive/forest green)
+        teal_shift = np.zeros_like(arr)
+        teal_shift[:, :, 0] -= 0.080   # R- (stronger cut)
+        teal_shift[:, :, 1] += 0.095   # G+ (strong green push)
+        teal_shift[:, :, 2] -= 0.040   # B- (cuts blue to prevent purple shadows, shifts to green)
+        arr = arr + teal_shift * shadow_w
+
+        # 3. Midtone green-warmth (R+ subtle, G+ green cast, B- warm yellow)
+        warm_shift = np.zeros_like(arr)
+        warm_shift[:, :, 0] += 0.015   # R+
+        warm_shift[:, :, 1] += 0.035   # G+ (pushed green into midtones)
+        warm_shift[:, :, 2] -= 0.050   # B-
+        arr = arr + warm_shift * mid_w
+
+        # 4. Highlight compression (airy, not blown)
+        hi_w = np.clip((luma - 0.85) / 0.15, 0.0, 1.0)[:, :, np.newaxis]
+        arr = arr - arr * hi_w * 0.05
+
+        arr = np.clip(arr * 255.0, 0, 255)
         return Image.fromarray(arr.astype(np.uint8))
 
     # ── Style: Cinematic ─────────────────────────────────────────
