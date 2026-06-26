@@ -47,8 +47,8 @@ async def submit_job(
     num_frames: int = Form(default=4, ge=3, le=8),
     parallax_strength: float = Form(default=0.5, ge=0.1, le=1.0),
     effect_style: str = Form(default="normal"),
-    export_format: str = Form(default="gif"),
-    fps: int = Form(default=12, ge=6, le=30),
+    export_format: str = Form(default="mp4"),
+    fps: int = Form(default=15, ge=6, le=30),
     db: AsyncSession = Depends(get_db),
     # current_user: User = Depends(get_current_user),  # Uncomment when auth is ready
 ):

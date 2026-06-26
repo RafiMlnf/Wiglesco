@@ -104,8 +104,8 @@ class ProcessingJob(Base):
     num_frames: Mapped[int] = mapped_column(Integer, default=4)
     parallax_strength: Mapped[float] = mapped_column(Float, default=0.5)
     effect_style: Mapped[EffectStyle] = mapped_column(Enum(EffectStyle), default=EffectStyle.NORMAL)
-    export_format: Mapped[ExportFormat] = mapped_column(Enum(ExportFormat), default=ExportFormat.GIF)
-    fps: Mapped[int] = mapped_column(Integer, default=12)
+    export_format: Mapped[ExportFormat] = mapped_column(Enum(ExportFormat), default=ExportFormat.MP4)
+    fps: Mapped[int] = mapped_column(Integer, default=15)
 
     # Output
     output_url: Mapped[str | None] = mapped_column(String(500))

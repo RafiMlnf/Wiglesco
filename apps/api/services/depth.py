@@ -20,12 +20,15 @@ class DepthEstimationService:
     Wraps Depth Anything V2 for monocular depth estimation.
 
     Models available (trade-off: accuracy vs speed):
-      - depth-anything/Depth-Anything-V2-Small-hf  (fast, ~4GB VRAM)
-      - depth-anything/Depth-Anything-V2-Base-hf   (balanced, ~6GB VRAM)
-      - depth-anything/Depth-Anything-V2-Large-hf  (best quality, ~12GB VRAM)
+      - depth-anything/Depth-Anything-V2-Small-hf  (✅ GTX 1650 OK — ~1.5GB VRAM, fast)
+      - depth-anything/Depth-Anything-V2-Base-hf   (✅ RTX 3060+ — ~2.5GB VRAM, balanced)
+      - depth-anything/Depth-Anything-V2-Large-hf  (🔴 Needs 6GB+ VRAM, best quality)
     """
 
-    MODEL_ID = "depth-anything/Depth-Anything-V2-Large-hf"
+    @property
+    def MODEL_ID(self) -> str:
+        size = settings.DEPTH_MODEL_SIZE  # Small | Base | Large
+        return f"depth-anything/Depth-Anything-V2-{size}-hf"
 
     def __init__(self):
         self._pipe = None
@@ -37,15 +40,20 @@ class DepthEstimationService:
         await loop.run_in_executor(None, self._load_sync)
 
     def _load_sync(self):
-        logger.info(f"Loading depth model: {self.MODEL_ID}")
+        model_id = self.MODEL_ID
+        logger.info(f"Loading depth model: {model_id} (VRAM mode: {settings.DEPTH_MODEL_SIZE})")
         self._pipe = hf_pipeline(
             task="depth-estimation",
-            model=self.MODEL_ID,
+            model=model_id,
             device=0 if self.device == "cuda" else -1,
             torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
             cache_dir=settings.MODEL_CACHE_DIR,
         )
-        logger.info("✅ Depth Anything V2 loaded")
+        if self.device == "cuda" and torch.cuda.is_available():
+            free_gb = (torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_allocated(0)) / 1e9
+            logger.info(f"✅ Depth Anything V2 ({settings.DEPTH_MODEL_SIZE}) loaded | VRAM free: {free_gb:.1f}GB")
+        else:
+            logger.info(f"✅ Depth Anything V2 ({settings.DEPTH_MODEL_SIZE}) loaded (CPU mode)")
 
     async def estimate(self, image: Image.Image) -> np.ndarray:
         """
@@ -77,7 +85,13 @@ class DepthEstimationService:
         from PIL import Image as PILImage
         depth_img = PILImage.fromarray((depth * 255).astype(np.uint8))
         depth_img = depth_img.resize(image.size, PILImage.BILINEAR)
-        return np.array(depth_img).astype(np.float32) / 255.0
+        result = np.array(depth_img).astype(np.float32) / 255.0
+
+        # Free VRAM immediately so next pipeline step has room
+        if self.device == "cuda":
+            torch.cuda.empty_cache()
+
+        return result
 
     def unload(self):
         """Free GPU memory."""

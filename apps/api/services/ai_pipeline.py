@@ -70,6 +70,13 @@ class AIPipeline:
         """Load all AI models into memory. Call once at worker startup."""
         if self._initialized:
             return
+        if settings.DEVICE == "cuda":
+            import torch
+            if torch.cuda.is_available():
+                gpu = torch.cuda.get_device_properties(0)
+                total_gb = gpu.total_memory / 1e9
+                logger.info(f"💻 GPU detected: {gpu.name} | VRAM: {total_gb:.1f}GB")
+                logger.info(f"🔧 Mode: depth={settings.DEPTH_MODEL_SIZE}, diffusion={settings.USE_DIFFUSION_SYNTHESIS}, inpaint={settings.USE_SDXL_INPAINT}")
         logger.info("Loading AI models...")
         await asyncio.gather(
             self.depth_service.load(),
@@ -87,8 +94,8 @@ class AIPipeline:
         num_frames: int = 4,
         parallax_strength: float = 0.5,
         effect_style: str = "normal",
-        export_format: str = "gif",
-        fps: int = 12,
+        export_format: str = "mp4",   # ← changed default from gif to mp4
+        fps: int = 15,                 # ← bumped default fps for smoother MP4
         progress_callback: Optional[Callable] = None,
     ) -> dict:
         """
@@ -127,6 +134,7 @@ class AIPipeline:
             image = self._preprocess_image(image)
             image.save(work_dir / "input_clean.png")
             await report(step, done=True)
+            logger.info(f"Input image resized to: {image.size}")
 
             # ── Step 2: Depth Estimation ──────────────────────────────────
             step = PIPELINE_STEPS[2]
@@ -208,12 +216,18 @@ class AIPipeline:
             shutil.rmtree(work_dir, ignore_errors=True)
 
     def _preprocess_image(self, image: Image.Image) -> Image.Image:
-        """Resize and normalize image for pipeline."""
-        max_dim = settings.MAX_IMAGE_DIMENSION
+        """Resize image so longest side <= INPUT_MAX_LONG_SIDE. Safe for 4GB VRAM."""
+        max_side = settings.INPUT_MAX_LONG_SIDE  # 1280 for GTX 1650
         w, h = image.size
-        if max(w, h) > max_dim:
-            scale = max_dim / max(w, h)
-            image = image.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+        long_side = max(w, h)
+        if long_side > max_side:
+            scale = max_side / long_side
+            new_w, new_h = int(w * scale), int(h * scale)
+            # Ensure dimensions divisible by 8 (required by many diffusion models)
+            new_w = (new_w // 8) * 8
+            new_h = (new_h // 8) * 8
+            logger.info(f"Resizing {w}x{h} → {new_w}x{new_h} (max_side={max_side} for VRAM safety)")
+            image = image.resize((new_w, new_h), Image.LANCZOS)
         return image
 
     def _save_depth_visualization(self, depth_map: np.ndarray, path: Path):

@@ -46,8 +46,8 @@ def process_image_task(
     num_frames: int = 4,
     parallax_strength: float = 0.5,
     effect_style: str = "normal",
-    export_format: str = "gif",
-    fps: int = 12,
+    export_format: str = "mp4",
+    fps: int = 15,
 ):
     """
     Main Celery task: download image → run AI pipeline → save results.

@@ -28,20 +28,27 @@ class NovelViewSynthesisService:
     def __init__(self):
         self._svd_pipe = None
         self.device = settings.DEVICE
-        self.use_diffusion = True  # Set False for classical only mode
+        # Read from config — False for GTX 1650 (4GB VRAM), SVD needs 10GB+
+        self.use_diffusion = settings.USE_DIFFUSION_SYNTHESIS
 
     async def load(self):
-        """Load diffusion model if enabled."""
+        """Load diffusion model if enabled (requires 10GB+ VRAM)."""
         if not self.use_diffusion:
-            logger.info("Novel view synthesis: classical warp mode (no model needed)")
+            logger.info("Novel view synthesis: classical warp mode (GTX 1650 / low-VRAM mode, no diffusion model needed)")
             return
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, self._load_svd)
 
     def _load_svd(self):
-        """Load Stable Video Diffusion img2vid."""
+        """Load Stable Video Diffusion img2vid. Requires ~10GB VRAM — NOT for GTX 1650."""
         try:
             from diffusers import StableVideoDiffusionPipeline
+            if self.device == "cuda" and torch.cuda.is_available():
+                total_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+                if total_gb < 8:
+                    logger.warning(f"⚠️ SVD requires 10GB+ VRAM, detected {total_gb:.1f}GB. Falling back to classical warp.")
+                    self.use_diffusion = False
+                    return
             logger.info("Loading Stable Video Diffusion...")
             self._svd_pipe = StableVideoDiffusionPipeline.from_pretrained(
                 "stabilityai/stable-video-diffusion-img2vid-xt",
@@ -99,34 +106,37 @@ class NovelViewSynthesisService:
         img_array = np.array(image).astype(np.float32)
         H, W = img_array.shape[:2]
 
-        # Max pixel displacement based on strength (e.g. up to 5% of width)
-        max_disp = int(W * 0.05 * parallax_strength)
+        # Max pixel displacement: up to 6% of width
+        # GTX 1650 tip: classical warp is pure CPU/NumPy, zero VRAM used
+        max_disp = int(W * 0.06 * parallax_strength)
 
-        # Offsets: symmetric around 0
+        # Symmetric offsets — ping-pong friendly
         offsets = np.linspace(-max_disp, max_disp, num_frames)
+
+        # Smooth depth map slightly to reduce warping artifacts
+        import cv2 as _cv2
+        depth_smooth = _cv2.GaussianBlur(depth_map, (5, 5), 0)
 
         frames = []
         for offset in offsets:
-            # Create displacement map based on depth
-            # Near objects (high depth value) shift more
-            disp_map = depth_map * offset  # Shape: (H, W)
+            # Depth-driven displacement: near objects shift more
+            disp_map = depth_smooth * offset  # Shape: (H, W)
 
             # Build remap coordinates
             x_coords = np.arange(W, dtype=np.float32)
             y_coords = np.arange(H, dtype=np.float32)
             map_x, map_y = np.meshgrid(x_coords, y_coords)
 
-            # Apply horizontal parallax shift
             map_x_shifted = (map_x + disp_map).astype(np.float32)
             map_y_shifted = map_y.astype(np.float32)
 
-            # Remap image
-            warped = cv2.remap(
+            # INTER_CUBIC gives sharper result than LINEAR for parallax
+            warped = _cv2.remap(
                 img_array,
                 map_x_shifted,
                 map_y_shifted,
-                interpolation=cv2.INTER_LINEAR,
-                borderMode=cv2.BORDER_REPLICATE,
+                interpolation=_cv2.INTER_CUBIC,
+                borderMode=_cv2.BORDER_REPLICATE,
             )
             frames.append(Image.fromarray(warped.astype(np.uint8)))
 

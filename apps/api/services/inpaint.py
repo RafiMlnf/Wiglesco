@@ -20,6 +20,10 @@ class InpaintingService:
         await loop.run_in_executor(None, self._load_sync)
 
     def _load_sync(self):
+        # Skip SDXL load on low-VRAM GPUs (GTX 1650 etc.)
+        if not settings.USE_SDXL_INPAINT:
+            logger.info("Inpainting: edge-extend fill mode (SDXL Inpaint disabled — needs 8GB+ VRAM)")
+            return
         try:
             from diffusers import AutoPipelineForInpainting
             import torch

@@ -44,12 +44,12 @@ class EnhancementService:
                 scale=4,
                 model_path=f"{settings.MODEL_CACHE_DIR}/RealESRGAN_x4plus.pth",
                 model=model,
-                tile=512,
+                tile=settings.ESRGAN_TILE_SIZE,   # 256 for GTX 1650, 512 for 8GB+
                 tile_pad=10,
                 pre_pad=0,
                 half=True,
             )
-            logger.info("✅ Real-ESRGAN loaded")
+            logger.info(f"✅ Real-ESRGAN loaded (tile={settings.ESRGAN_TILE_SIZE}px for VRAM safety)")
         except Exception as e:
             logger.warning(f"Real-ESRGAN load failed: {e}. Upscaling disabled.")
             self._esrgan = None

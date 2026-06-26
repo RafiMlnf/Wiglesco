@@ -56,11 +56,22 @@ class Settings(BaseSettings):
     DEVICE: str = "cuda"  # cuda | cpu | mps
     MODEL_PRECISION: str = "fp16"  # fp16 | fp32 | int8
 
+    # ── GTX 1650 / Low-VRAM Mode (4GB) ───────────────────────
+    # Depth model: Small fits in ~1.5GB, Base needs ~2.5GB, Large needs ~6GB
+    # SVD (novel view diffusion) needs 10GB+ — disabled for 1650, uses classical warp
+    # SDXL Inpaint needs 8GB+ — disabled for 1650, uses edge-extend fill
+    DEPTH_MODEL_SIZE: str = "Small"        # Small | Base | Large
+    USE_DIFFUSION_SYNTHESIS: bool = False  # Set True only on 10GB+ VRAM
+    USE_SDXL_INPAINT: bool = False         # Set True only on 8GB+ VRAM
+    ESRGAN_TILE_SIZE: int = 256            # Smaller tile = less VRAM (256 for 4GB)
+    INPUT_MAX_LONG_SIDE: int = 1280        # Resize input before inference (1280 safe for 4GB)
+
     # Processing Limits
     MAX_FILE_SIZE_MB: int = 50
-    MAX_IMAGE_DIMENSION: int = 4096
+    MAX_IMAGE_DIMENSION: int = 1280        # Hard cap for 4GB VRAM safety
     MAX_FRAMES: int = 8
     DEFAULT_FRAMES: int = 4
+    DEFAULT_EXPORT_FORMAT: str = "mp4"     # gif | webp | mp4 | lenticular
     PROCESSING_TIMEOUT_SECONDS: int = 300
 
     # Rate Limiting
