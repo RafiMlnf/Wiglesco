@@ -1,4 +1,4 @@
-# WiggleAI — Project Progress Checklist
+# Wiglesco — Project Progress Checklist
 
 > **Last Updated:** 2026-06-26
 > **Active Phase:** Phase 1 (Core AI Pipeline) + Phase 3A (Frontend Editor UI)
@@ -85,12 +85,12 @@
 ## Phase 3: Frontend Editor UI
 
 ### 3A: Editor Core (IN PROGRESS)
-- [x] **Upload Zone** — drag & drop, preview instant, validasi format (JPEG/PNG/WebP)
+- [x] **Upload Zone** — drag & drop, preview instant, validasi format (JPEG/PNG/WebP/HEIC)
 - [x] **Control Panel:**
   - [x] Parallax Displacement slider
   - [x] Number of Frames selector (3/4/6/8)
   - [x] Frame Rate slider (6–30 fps)
-  - [x] Style Preset selector (Normal/Nishika/Vintage/Cinematic/Glitch/Cyberpunk)
+  - [x] Style Preset selector (Normal/Nishika/Retro Warm/Analog/Cinematic/Glitch/Cyberpunk)
   - [x] Format selector (MP4/GIF/WebP)
 - [x] **3-panel layout** — Left controls, Center canvas, Right stats/history
 - [x] **Tab viewer** — Original / Depth Map / 3D Parallax
@@ -132,6 +132,8 @@
 | Real-ESRGAN `basicsr` module missing | Known — upscaling disabled, tidak kritis untuk Phase 1 |
 | Unicode encode error di Windows terminal (emoji di print) | Fixed via `PYTHONUTF8=1` |
 | Next.js Turbopack parse error (CSS `{}` dalam JSX template literal) | Fixed — CSS dipindah ke `globals.css` |
+| Dukungan format HEIC/HEIF di Backend & Frontend | Fixed (menggunakan `pillow-heif` & custom preview placeholder) |
+| Preset warna baru "Retro Warm" | Fixed (replikasi grading hangat + grain + vignette dari referensi foto) |
 
 ---
 

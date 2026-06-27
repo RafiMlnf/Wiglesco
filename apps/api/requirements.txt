@@ -41,6 +41,7 @@ websockets==14.1
 
 # Image Processing
 Pillow==11.0.0
+pillow-heif==1.4.0
 numpy==2.1.3
 opencv-python-headless==4.10.0.84
 imageio==2.36.1

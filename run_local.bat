@@ -1,5 +1,5 @@
 @echo off
-:: WiggleAI Local Development Launcher
+:: Wiglesco Local Development Launcher
 :: Starts both the FastAPI backend and Next.js frontend on localhost.
 
 setlocal
@@ -8,7 +8,7 @@ set "API_DIR=%SCRIPT_DIR%apps\api"
 set "VENV_PYTHON=%API_DIR%\venv\Scripts\python.exe"
 
 echo ==============================================
-echo WiggleAI — Launching Local Dev Environment
+echo Wiglesco — Launching Local Dev Environment
 echo ==============================================
 
 :: Check virtual environment
@@ -31,7 +31,7 @@ if %ERRORLEVEL% NEQ 0 (
 echo Starting FastAPI Backend (port 8000)...
 set PYTHONUTF8=1
 set HF_HUB_DISABLE_SYMLINKS_WARNING=1
-start "WiggleAI Backend" /min cmd /c "cd /d "%API_DIR%" && venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000"
+start "Wiglesco Backend" /min cmd /c "cd /d "%API_DIR%" && venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000"
 
 :: Wait a moment for backend to initialize
 timeout /t 3 /nobreak >nul

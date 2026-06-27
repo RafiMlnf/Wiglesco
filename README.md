@@ -1,6 +1,8 @@
-# WiggleAI
+# Wiglesco
 
-An AI-powered Wiggle 3D, Stereogram, and Lenticular photo effect application. This project transforms a single photo into an animated 3D perspective parallax video, simulating the iconic look of 4-lens film cameras like the Nishika N8000.
+Wiglesco is an AI-powered Wiggle 3D, Stereogram, and Lenticular photo effect application. This project transforms a single photo into an animated 3D perspective parallax video, simulating the iconic look of 4-lens film cameras like the Nishika N8000.
+
+Wiglesco adalah aplikasi efek foto Wiggle 3D, Stereogram, dan Lenticular berbasis AI. Proyek ini mengubah satu foto biasa menjadi video paralaks perspektif 3D bergerak, mereproduksi tampilan khas dari kamera analog 4 lensa legendaris seperti Nishika N8000.
 
 ![Turborepo](https://img.shields.io/badge/Turborepo-EF4444?style=flat-square&logo=turborepo&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js_15-000000?style=flat-square&logo=nextdotjs&logoColor=white)
@@ -15,7 +17,7 @@ An AI-powered Wiggle 3D, Stereogram, and Lenticular photo effect application. Th
 
 ## Technical Overview
 
-WiggleAI processes images through a custom multi-stage pipeline:
+Wiglesco processes images through a custom multi-stage pipeline:
 1. **Depth Estimation:** Extracts pixel-level distance mapping from a single source image.
 2. **Novel View Synthesis:** Simulates multi-view perspective shift using horizontal depth warping.
 3. **Inpainting / Border Extension:** Fills disocclusion gaps on the image boundaries.
@@ -27,7 +29,7 @@ WiggleAI processes images through a custom multi-stage pipeline:
 ## Project Structure
 
 ```text
-wiggleai/
+wiglesco/
 ├── apps/
 │   ├── web/        # Next.js 15 frontend application
 │   └── api/        # FastAPI backend service

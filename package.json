@@ -1,5 +1,5 @@
 {
-    "name":  "wiggleai",
+    "name":  "wiglesco",
     "private":  true,
     "scripts":  {
                     "build":  "turbo run build",

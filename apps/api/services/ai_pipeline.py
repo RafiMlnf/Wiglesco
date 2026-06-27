@@ -1,5 +1,5 @@
 """
-WiggleAI — AI Pipeline Orchestrator
+Wiglesco — AI Pipeline Orchestrator
 Chains: Depth Estimation → Novel View Synthesis → Inpainting → Enhancement → Export
 """
 import asyncio
@@ -42,7 +42,7 @@ PIPELINE_STEPS = [
 
 class AIPipeline:
     """
-    Main AI pipeline orchestrator for WiggleAI.
+    Main AI pipeline orchestrator for Wiglesco.
 
     Usage:
         pipeline = AIPipeline()
@@ -112,7 +112,7 @@ class AIPipeline:
         start_time = time.time()
         logger.info(f"🚀 AIPipeline started - job_id: {job_id}, style: {effect_style}, strength: {parallax_strength}, frames: {num_frames}, format: {export_format}, fps: {fps}")
         accumulated_progress = 0.0
-        work_dir = Path(f"/tmp/wiggleai/{job_id}")
+        work_dir = Path(f"/tmp/wiglesco/{job_id}")
         work_dir.mkdir(parents=True, exist_ok=True)
 
         async def report(step: PipelineStep, done: bool = False):

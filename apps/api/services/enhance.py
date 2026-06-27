@@ -237,10 +237,19 @@ class EnhancementService:
 
     # ── Common Effects ───────────────────────────────────────────
     def _add_chromatic_aberration(self, arr: np.ndarray, strength: int = 3) -> np.ndarray:
-        """Shift RGB channels by different offsets to simulate lens aberration."""
+        """Shift RGB channels by different offsets to simulate lens aberration.
+        Uses array slicing instead of np.roll to avoid pixel wrap-around artifacts."""
+        s = abs(strength)
+        if s == 0:
+            return arr
         result = arr.copy()
-        result[:, :, 0] = np.roll(arr[:, :, 0], strength, axis=1)   # R shift right
-        result[:, :, 2] = np.roll(arr[:, :, 2], -strength, axis=1)  # B shift left
+        H, W = arr.shape[:2]
+        # Red channel: shift right (pad left edge with first column)
+        result[:, s:, 0] = arr[:, :W-s, 0]
+        result[:, :s, 0] = arr[:, 0:1, 0]
+        # Blue channel: shift left (pad right edge with last column)
+        result[:, :W-s, 2] = arr[:, s:, 2]
+        result[:, W-s:, 2] = arr[:, W-1:W, 2]
         return result
 
     def _add_film_grain(self, arr: np.ndarray, intensity: float = 20.0) -> np.ndarray:

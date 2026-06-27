@@ -1,6 +1,6 @@
 @echo off
-:: WiggleAI — Easy Launcher
-:: Drag & drop a photo onto this file, or run: wiggle.bat path\to\photo.jpg
+:: Wiglesco — Easy Launcher
+:: Drag & drop a photo onto this file, or run: wiglesco.bat path\to\photo.jpg
 
 setlocal
 set "SCRIPT_DIR=%~dp0"
@@ -18,10 +18,10 @@ if not exist "%VENV%" (
 
 :: Get input photo
 if "%~1"=="" (
-    echo WiggleAI - Wiggle 3D Effect Generator
+    echo Wiglesco - Wiggle 3D Effect Generator
     echo ======================================
     echo.
-    echo Usage: wiggle.bat path\to\photo.jpg [options]
+    echo Usage: wiglesco.bat path\to\photo.jpg [options]
     echo.
     echo Options (all optional):
     echo   --output  output.mp4   Output file path (default: same folder as input)
@@ -31,7 +31,7 @@ if "%~1"=="" (
     echo   --fps     15           Frames per second (default: 15)
     echo.
     echo Example:
-    echo   wiggle.bat C:\Photos\portrait.jpg --style nishika --strength 0.8
+    echo   wiglesco.bat C:\Photos\portrait.jpg --style nishika --strength 0.8
     echo.
     pause
     exit /b 0
@@ -49,7 +49,7 @@ set PYTHONUTF8=1
 set HF_HUB_DISABLE_SYMLINKS_WARNING=1
 
 echo.
-echo  WiggleAI Processing: %INPUT_NAME%
+echo  Wiglesco Processing: %INPUT_NAME%
 echo  -----------------------------------------------
 "%VENV%" "%PROTOTYPE%" --input "%INPUT%" --output "%OUTPUT%" %2 %3 %4 %5 %6 %7 %8
 

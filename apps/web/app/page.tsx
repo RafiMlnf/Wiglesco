@@ -68,7 +68,11 @@ export default function WiggleEditor() {
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const f = e.dataTransfer.files?.[0];
-    if (f && f.type.startsWith("image/")) onFile(f);
+    if (f) {
+      const isImage = f.type.startsWith("image/");
+      const isHeicFile = f.name.toLowerCase().endsWith(".heic") || f.name.toLowerCase().endsWith(".heif");
+      if (isImage || isHeicFile) onFile(f);
+    }
   };
 
   const STEPS = ["Uploading...", "Estimating depth...", "Synthesizing frames...", "Applying style...", "Encoding video..."];
@@ -123,7 +127,7 @@ export default function WiggleEditor() {
       <header className="app-header">
         <div className="header-brand">
           <span className="brand-dot" />
-          <span className="brand-name">WiggleAI</span>
+          <span className="brand-name">Wiglesco</span>
           <span className="brand-badge">local</span>
         </div>
         <div className="header-right">
@@ -146,12 +150,22 @@ export default function WiggleEditor() {
               onDragOver={(e) => e.preventDefault()}
               onDrop={onDrop}
             >
-              {preview
-                ? <img src={preview} alt="src" className="drop-preview" />
-                : <span className="drop-hint">Click or drag image</span>
-              }
+              {preview ? (
+                image && (image.name.toLowerCase().endsWith(".heic") || image.name.toLowerCase().endsWith(".heif")) ? (
+                  <div className="heic-preview-placeholder">
+                    <div className="heic-icon">📷</div>
+                    <span className="heic-title">{image.name}</span>
+                    <span className="heic-badge">HEIC File</span>
+                    <span className="heic-note">No browser preview</span>
+                  </div>
+                ) : (
+                  <img src={preview} alt="src" className="drop-preview" />
+                )
+              ) : (
+                <span className="drop-hint">Click or drag image</span>
+              )}
             </div>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden-input" onChange={onInputChange} />
+            <input ref={fileRef} type="file" accept="image/*,.heic,.heif" className="hidden-input" onChange={onInputChange} />
           </div>
 
           <div className="divider" />
@@ -241,7 +255,25 @@ export default function WiggleEditor() {
               </div>
             ) : (
               <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {tab === "original" && <img src={preview} alt="Original" className="canvas-media" />}
+                {tab === "original" && (
+                  image && (image.name.toLowerCase().endsWith(".heic") || image.name.toLowerCase().endsWith(".heif")) ? (
+                    <div className="heic-canvas-placeholder">
+                      <div className="heic-canvas-icon">📷</div>
+                      <h3 className="heic-canvas-filename">{image.name}</h3>
+                      <span className="heic-canvas-badge">HEIC Image Format</span>
+                      <p className="heic-canvas-desc">
+                        Web browsers do not natively support displaying HEIC image previews.
+                        <br />
+                        However, the Wiglesco backend will fully process, depth-estimate, and render your 3D Parallax loop.
+                      </p>
+                      <button onClick={submit} disabled={loading} className="heic-canvas-action">
+                        {loading ? "Processing..." : "Render 3D Parallax Now"}
+                      </button>
+                    </div>
+                  ) : (
+                    <img src={preview} alt="Original" className="canvas-media" />
+                  )
+                )}
                 {tab === "depth" && result && <img src={result.depth_map_url} alt="Depth" className="canvas-media" />}
                 {tab === "output" && result && (
                   <video key={result.output_url} src={result.output_url} autoPlay loop muted playsInline className="canvas-media" />

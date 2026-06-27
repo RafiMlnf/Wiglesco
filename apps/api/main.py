@@ -13,12 +13,15 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from loguru import logger
 
+from pillow_heif import register_heif_opener
+register_heif_opener()
+
 from core.config import settings
 from services.ai_pipeline import AIPipeline
 
 app = FastAPI(
-    title="WiggleAI API (Local Direct)",
-    description="Local version of WiggleAI running directly in-process",
+    title="Wiglesco API (Local Direct)",
+    description="Local version of Wiglesco running directly in-process",
     version="0.1.0",
 )
 
@@ -39,7 +42,7 @@ async def startup():
     logger.info("Initializing local AI pipeline...")
     # Initialize all models (downloads Depth-Anything-V2-Small on first run)
     await pipeline.initialize()
-    logger.info("Local WiggleAI pipeline initialized and ready.")
+    logger.info("Local Wiglesco pipeline initialized and ready.")
 
 # Ensure directories exist
 Path(settings.OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
@@ -66,8 +69,10 @@ async def process_direct(
     Direct synchronous endpoint for local GUI testing.
     Uploads file -> Runs full pipeline -> Saves output -> Returns direct URLs.
     """
-    if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
-        raise HTTPException(status_code=400, detail="Invalid file format. Use JPEG, PNG, or WebP.")
+    allowed_types = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]
+    file_ext = Path(file.filename).suffix.lower() if file.filename else ""
+    if file.content_type not in allowed_types and file_ext not in [".heic", ".heif"]:
+        raise HTTPException(status_code=400, detail="Invalid file format. Use JPEG, PNG, WebP, or HEIC.")
 
     job_id = str(uuid.uuid4())
     logger.info(f"Processing local job {job_id} ({file.filename})")
@@ -122,4 +127,4 @@ async def process_direct(
 
 @app.get("/")
 async def root():
-    return {"message": "WiggleAI Direct Local API is running", "docs": "/docs"}
+    return {"message": "Wiglesco Direct Local API is running", "docs": "/docs"}

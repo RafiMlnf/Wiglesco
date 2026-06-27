@@ -103,15 +103,18 @@ class NovelViewSynthesisService:
         )
 
     def _warp_sync(self, image, depth_map, num_frames, parallax_strength):
-        img_array = np.array(image).astype(np.float32)
+        img_array = np.array(image).astype(np.uint8)
         H, W = img_array.shape[:2]
 
-        # Smooth depth map slightly to reduce warping artifacts
         import cv2 as _cv2
-        depth_smooth = _cv2.GaussianBlur(depth_map, (5, 5), 0)
+
+        # Bilateral filter to smooth flat areas while preserving sharp edges
+        try:
+            depth_smooth = _cv2.bilateralFilter(depth_map.astype(np.float32), 5, 0.1, 5)
+        except Exception:
+            depth_smooth = _cv2.GaussianBlur(depth_map.astype(np.float32), (5, 5), 0)
 
         # Map normalized depth [0, 1] to virtual Z values (Near = 1.0, Far = 2.5)
-        # Depth Anything V2: 1.0 is near, 0.0 is far
         Z = 1.0 + (1.0 - depth_smooth) * 1.5
 
         # Focal length (virtual camera) and center point
@@ -125,11 +128,10 @@ class NovelViewSynthesisService:
         map_norm_x, map_norm_y = np.meshgrid(norm_x, norm_y)
 
         # Focus depth: dynamically set to mean depth of the image
-        # Objects at this depth will remain stationary, acting as the pivot/focal point
         depth_mean = float(np.mean(depth_smooth))
         Z_focus = 1.0 + (1.0 - depth_mean) * 1.5
 
-        # Max horizontal camera rotation angle (in radians): ~3.5 degrees at strength=1.0
+        # Max horizontal camera rotation angle (in radians)
         max_theta = 0.06 * parallax_strength
         thetas = np.linspace(-max_theta, max_theta, num_frames)
 
@@ -144,25 +146,63 @@ class NovelViewSynthesisService:
 
             # 3D Camera Rotation around Y-axis (horizontal orbit/POV rotation)
             X_rot = X * cos_t - Z_rel * sin_t
-            Y_rot = map_norm_y * Z  # Y coordinate stays constant for horizontal rotation
             Z_rot = X * sin_t + Z_rel * cos_t + Z_focus
 
             # Prevent division by zero or negative depth
             Z_rot = np.maximum(Z_rot, 0.1)
 
-            # Project back to 2D image coordinates
-            map_x_shifted = (X_rot / Z_rot) * f + cx
-            map_y_shifted = (Y_rot / Z_rot) * f + cy
+            # Project back to 2D target coordinates
+            x_t = (X_rot / Z_rot) * f + cx
+            y_t = (map_norm_y * Z / Z_rot) * f + cy
 
-            # Warp the image using INTER_CUBIC for clean, sharp edges
-            warped = _cv2.remap(
-                img_array,
-                map_x_shifted.astype(np.float32),
-                map_y_shifted.astype(np.float32),
-                interpolation=_cv2.INTER_CUBIC,
-                borderMode=_cv2.BORDER_REPLICATE,
-            )
-            frames.append(Image.fromarray(warped.astype(np.uint8)))
+            # Round to nearest pixel grid index
+            ix = np.round(x_t).astype(np.int32)
+            iy = np.round(y_t).astype(np.int32)
+
+            # Flatten arrays for vectorized Painter's Algorithm
+            ix_flat = ix.ravel()
+            iy_flat = iy.ravel()
+            z_flat = Z_rot.ravel()
+            colors_flat = img_array.reshape(-1, 3)
+
+            # Filter valid pixels within bounds
+            valid = (ix_flat >= 0) & (ix_flat < W) & (iy_flat >= 0) & (iy_flat < H)
+            ix_valid = ix_flat[valid]
+            iy_valid = iy_flat[valid]
+            z_valid = z_flat[valid]
+            colors_valid = colors_flat[valid]
+
+            # Sort by depth descending (farther pixels first, closer foreground pixels overwrite them)
+            sort_idx = np.argsort(z_valid)[::-1]
+            ix_sorted = ix_valid[sort_idx]
+            iy_sorted = iy_valid[sort_idx]
+            colors_sorted = colors_valid[sort_idx]
+
+            # Draw to canvas and keep track of drawn pixels
+            warped = np.zeros((H, W, 3), dtype=np.uint8)
+            occupied = np.zeros((H, W), dtype=np.uint8)
+            
+            warped[iy_sorted, ix_sorted] = colors_sorted
+            occupied[iy_sorted, ix_sorted] = 1
+
+            # Disocclusion mask (empty areas where occupied == 0)
+            mask = (occupied == 0).astype(np.uint8) * 255
+
+            # Inpaint the disocclusions (Photoshop-style Clone Stamp / Telea method)
+            inpainted = _cv2.inpaint(warped, mask, inpaintRadius=5, flags=_cv2.INPAINT_TELEA)
+
+            # Crop the inpainted frame to remove outer border holes
+            crop_w = int(W * 0.05 * parallax_strength)
+            crop_w = np.clip(crop_w, 4, int(W * 0.12))
+            crop_h = int(H * (crop_w / W))
+
+            # Crop using numpy slicing
+            cropped = inpainted[crop_h:H-crop_h, crop_w:W-crop_w]
+
+            # Resize back to original dimensions for a seamless fit
+            warped_resized = _cv2.resize(cropped, (W, H), interpolation=_cv2.INTER_CUBIC)
+
+            frames.append(Image.fromarray(warped_resized))
 
         return frames
 
