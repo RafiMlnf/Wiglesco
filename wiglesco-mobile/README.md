@@ -75,6 +75,26 @@ If you want to use **Server Mode** connected to your local FastAPI backend:
 
 ---
 
+## Monetization & Authentication / Monetisasi & Otentikasi
+
+### 1. Google OAuth Authentication / Otentikasi Google OAuth
+* **Authentication Flow:** Enables users to sign in seamlessly using their Google Account (`google_sign_in: ^6.2.1`).
+* **Session Handshake:** The application retrieves the secure OAuth ID token from the Google API and transmits it to the FastAPI backend to authenticate requests, syncing user history and premium access.
+* *Otentikasi aman berbasis Google OAuth (`google_sign_in`). ID Token dikirimkan secara aman ke backend FastAPI untuk memverifikasi identitas pengguna, menyinkronkan riwayat render, dan mencatat status langganan.*
+
+### 2. Region-Aware Pricing / Lokalisasi Harga & Langganan
+* **Dynamic Localization:** Automatically detects the device's region settings (`Platform.localeName`) to present tailored prices.
+* **Indonesian Market Pricing (IDR):** Customized for highly competitive affordability:
+  * **Monthly Access:** **Rp 15.000 / month** (ditagih bulanan).
+  * **Yearly Pass:** **Rp 99.000 / year** (ditagih tahunan - Hemat 45%).
+* **Global Market Pricing (USD):** Applied automatically outside Indonesia:
+  * **Monthly Access:** **$0.99 / month**
+  * **Yearly Pass:** **$6.99 / year**
+* **Access Gatekeeping:** Unregistered/free tier users are limited to **3 server renders**. Once the quota is depleted, the app prompts users with a premium paywall featuring a gold-shimmering interface to unlock unlimited generations.
+* *Penyesuaian harga dinamis berdasarkan bahasa/wilayah perangkat (`Platform.localeName`). Untuk Indonesia, harga bulanan adalah Rp 15.000 dan tahunan Rp 99.000. Untuk wilayah luar negeri, berlaku harga $0.99/bulan dan $6.99/tahun. Pengguna gratis dibatasi 3 kali render server sebelum diarahkan ke halaman paywall.*
+
+---
+
 ## License / Lisensi
 
 This project is licensed under the MIT License.
