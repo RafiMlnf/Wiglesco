@@ -1,130 +1,99 @@
-# Wiglesco
+# Wiglesco — Monorepo
 
-Wiglesco is an AI-powered Wiggle 3D, Stereogram, and Lenticular photo effect application. This project transforms a single photo into an animated 3D perspective parallax video, simulating the iconic look of 4-lens film cameras like the Nishika N8000.
+Wiglesco is an AI-powered Wiggle 3D, Stereogram, and Lenticular photo effect application. This repository contains both the web portal & API backend and the premium cross-platform Flutter mobile client. It transforms a single photo into an animated 3D perspective parallax video, simulating the iconic look of 4-lens film cameras like the Nishika N8000.
 
-Wiglesco adalah aplikasi efek foto Wiggle 3D, Stereogram, dan Lenticular berbasis AI. Proyek ini mengubah satu foto biasa menjadi video paralaks perspektif 3D bergerak, mereproduksi tampilan khas dari kamera analog 4 lensa legendaris seperti Nishika N8000.
+Wiglesco adalah aplikasi efek foto Wiggle 3D, Stereogram, dan Lenticular berbasis AI. Repositori ini berisi portal web & API backend serta aplikasi mobile Flutter premium. Proyek ini mengubah satu foto biasa menjadi video paralaks perspektif 3D bergerak, mereproduksi tampilan khas dari kamera analog 4 lensa legendaris seperti Nishika N8000.
 
-![Turborepo](https://img.shields.io/badge/Turborepo-EF4444?style=flat-square&logo=turborepo&logoColor=white)
+![Flutter](https://img.shields.io/badge/Flutter-02569B?style=flat-square&logo=flutter&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js_15-000000?style=flat-square&logo=nextdotjs&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
+![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-00599C?style=flat-square&logo=onnx&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)
 ![CUDA](https://img.shields.io/badge/CUDA-76B900?style=flat-square&logo=nvidia&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)
 
 ---
 
-## Technical Overview
+## Repository Structure / Struktur Repositori
 
-Wiglesco processes images through a custom multi-stage pipeline:
-1. **Depth Estimation:** Extracts pixel-level distance mapping from a single source image.
-2. **Novel View Synthesis:** Simulates multi-view perspective shift using horizontal depth warping.
-3. **Inpainting / Border Extension:** Fills disocclusion gaps on the image boundaries.
-4. **Post-Processing / Color Grading:** Simulates film properties (vignette, film grain, chromatic aberration, and retro-warm tinting).
-5. **Frame Assembly:** Sequences individual frames into a looping MP4, WebP, or GIF.
+The codebase is split into two cleanly decoupled components:
+*   **[wiglesco-mobile/](./wiglesco-mobile)**: The premium cross-platform Flutter application supporting local offline (serverless) ONNX inference and server API processing.
+*   **[wiglesco-web/](./wiglesco-web)**: The Turborepo-managed workspace hosting the Next.js 15 web client, python FastAPI backend API, ML prototyping scripts, and deployment infrastructure.
 
----
-
-## Project Structure
-
-```text
-wiglesco/
-├── apps/
-│   ├── web/        # Next.js 15 frontend application
-│   └── api/        # FastAPI backend service
-├── ml/
-│   ├── scripts/    # Model downloads and CLI testing scripts
-│   └── notebooks/  # Jupyter model experimentation
-├── infra/
-│   ├── docker/     # Container configurations
-│   ├── k8s/        # Kubernetes manifests
-│   └── terraform/  # Cloud infrastructure as code
-└── docker-compose.yml
-```
+*Repositori ini dibagi menjadi dua bagian terpisah:*
+*   *`wiglesco-mobile/`: Aplikasi mobile berbasis Flutter dengan UI Leica-style premium.*
+*   *`wiglesco-web/`: Workspace Turborepo berisi aplikasi web Next.js dan backend FastAPI Python.*
 
 ---
 
-## Local Development Setup
+## Technical Pipeline / Alur Teknis AI
 
-For local GPU execution on consumer hardware (such as GTX 1650 4GB VRAM), the application runs in Direct Local Mode. This bypasses Celery, Redis, and Postgres, executing the pipeline synchronously within the FastAPI server.
+Both platforms process input photos through the following pipeline:
+1.  **Depth Estimation:** Monocular depth extraction from a single image using **Depth Anything V2**.
+2.  **Novel View Synthesis:** Creates multi-view perspective frames using 3D coordinate depth warping.
+3.  **Inpainting:** Extends image boundaries to fill disocclusion gaps (using edge-extension locally, or SDXL on server).
+4.  **Styling / Analog Filter:** Simulates analog film properties (grain, warm tones, vignette, chromatic aberration).
+5.  **Frame Assembly:** Encodes frames into a looping MP4 video or GIF using a ping-pong bounce loop (`1-2-3-4-3-2-1`) for smooth wigglegram simulation.
 
-### Prerequisites
-* Node.js 20 or higher
-* Python 3.11.x or 3.12.x
-* NVIDIA GPU with CUDA Toolkit installed (for hardware-accelerated inference)
+---
 
-### 1. Backend Service Setup
+## Local Development Quick Start / Memulai Pengembangan Lokal
 
-Navigate to the API folder, set up the Python virtual environment, install dependencies, and run the FastAPI server:
+### 1. Web & Backend API Setup (`wiglesco-web`)
 
-```powershell
-# Change directory
-cd apps/api
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment (Windows)
-.\venv\Scripts\activate
-
-# Install required packages
-pip install -r requirements.txt
-
-# Start backend server
-$env:PYTHONUTF8 = "1"
-python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-The API endpoints and interactive documentation will be available at: http://localhost:8000/docs
-
-### 2. Frontend Application Setup
-
-In a new terminal window, install npm packages and start the Next.js development server:
+For local execution (e.g., GTX 1650 4GB VRAM), the FastAPI server runs in Direct Local Mode:
 
 ```bash
-# From the project root
+# Navigate to web & backend directory
+cd wiglesco-web
+
+# A. Set up and run Python FastAPI Backend
+cd apps/api
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+# Start uvicorn server (bound to 0.0.0.0 for network access)
+$env:PYTHONUTF8 = "1"
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
+
+# B. Set up and run Next.js Web Frontend (in a new terminal under wiglesco-web)
+npm install
 npm run dev
 ```
 
-The web editor interface will be available at: http://localhost:3000
+*   **API Interactive Documentation:** http://localhost:8000/docs
+*   **Web Editor Interface:** http://localhost:3000
 
 ---
 
-## Pipeline and Model Configurations
+### 2. Mobile App Setup (`wiglesco-mobile`)
 
-The backend utilizes Depth-Anything-V2 models. Depending on your system VRAM, configure the model sizes using environmental variables inside `apps/api/.env`:
+Built with Flutter & Riverpod. Supports fully offline local generation or FastAPI remote connection:
 
-| Model | Resource Size | Default Target | Purpose |
-|---|---|---|---|
-| Depth Anything V2 Small | 1.3 GB | Low-VRAM (GTX 1650) | Depth estimation |
-| Depth Anything V2 Base | 2.5 GB | Mid-VRAM | Depth estimation |
-| Real-ESRGAN x4plus | 67 MB | Optional | Resolution enhancement |
+```bash
+# Navigate to mobile directory
+cd wiglesco-mobile
 
-### Low-VRAM Optimization Profile
-On systems with 4GB VRAM:
-* SVD (Stable Video Diffusion) synthesis is disabled, falling back to Classical Depth Warping.
-* SDXL Inpaint is bypassed, falling back to an Edge-Extend fill method.
-* Upscaling via Real-ESRGAN is disabled by default to maintain healthy VRAM headroom.
+# Install packages
+flutter pub get
+```
 
----
+#### On-Device ONNX Setup (For Offline Serverless Mode):
+1.  Download the **Depth Anything V2 Small Quantized** ONNX model.
+2.  Create directory `wiglesco-mobile/assets/models/`.
+3.  Save the model inside it as `depth_anything_v2_vit_small.onnx`.
+4.  Run on your physical device or emulator: `flutter run`
 
-## Project Roadmap
-
-| Phase | Description | Status |
-|---|---|---|
-| Phase 0 | Setup and Foundation | Completed |
-| Phase 1 | AI Pipeline Prototype | Completed |
-| Phase 2 | Backend API Foundation | Completed |
-| Phase 3 | Frontend Editor UI | In Progress |
-| Phase 4 | Pipeline Integration | Pending |
-| Phase 5 | Gallery and Social Sharing | Pending |
-| Phase 6 | Monetization | Pending |
-| Phase 7 | API Developer Platform | Pending |
-| Phase 8 | Production Release | Pending |
+#### Connecting to your Local FastAPI Backend:
+1.  Go to the **Settings** screen in the mobile app.
+2.  Choose the **SERVER** mode pill.
+3.  Enter the URL:
+    *   *Android Emulator:* `http://10.0.2.2:8000`
+    *   *Physical Phone:* `http://<your-computer-ip>:8000` (e.g., `http://192.168.1.8:8000`)
+4.  Tap **TEST** to verify the connection.
 
 ---
 
-## License
+## License / Lisensi
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+*Proyek ini dilisensikan di bawah Lisensi MIT.*

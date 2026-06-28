@@ -1,50 +1,61 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ──────────────────────────────────────────────────────────────────────────────
+# WIGLESCO MONOREPO GITIGNORE
+# ──────────────────────────────────────────────────────────────────────────────
 
-# Dependencies
-node_modules
+# Node dependencies & caches
+node_modules/
 .pnp
 .pnp.js
+.turbo/
+.vercel/
 
-# Local env files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Testing
-coverage
-
-# Turbo
-.turbo
-
-# Vercel
-.vercel
-
-# Build Outputs
+# Next.js build output
 .next/
 out/
-build
-dist
 
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Misc
-.DS_Store
-*.pem
-
-# WiggleAI
-.env
-ml/models/
-/tmp/
-logs/
-__pycache__/
-*.pyc
+# Python Virtual Environments
 venv/
 .venv/
+ENV/
+env/
+
+# Python cache & build outputs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 *.egg-info/
-apps/api/outputs/
+.pytest_cache/
+
+# FastAPI outputs & job data
+wiglesco-web/apps/api/outputs/
+wiglesco-web/apps/api/jobs/
+wiglesco-web/ml/models/
+*.log
+
+# Flutter & Dart (Mobile) ignores
+wiglesco-mobile/.dart_tool/
+wiglesco-mobile/build/
+wiglesco-mobile/.flutter-plugins
+wiglesco-mobile/.flutter-plugins-dependencies
+wiglesco-mobile/.idea/
+wiglesco-mobile/*.iml
+wiglesco-mobile/ios/Flutter/ephemeral/
+wiglesco-mobile/ios/Flutter/Generated.xcconfig
+wiglesco-mobile/ios/Flutter/flutter_export_environment.sh
+
+# Heavy ONNX / ML model assets (must not be pushed to GitHub)
+*.onnx
+*.tflite
+*.pb
+wiglesco-mobile/assets/models/
+
+# Local Environment & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# OS metadata
+.DS_Store
+Thumbs.db
