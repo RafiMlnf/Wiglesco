@@ -25,6 +25,32 @@ The codebase is split into two cleanly decoupled components:
 
 ---
 
+## Technology Stack / Tumpukan Teknologi
+
+### Mobile Application
+*   **Flutter & Dart**: Cross-platform application framework and programming language.
+    *   *Framework aplikasi multiplatform dan bahasa pemrograman.*
+*   **Riverpod**: State management and dependency injection.
+    *   *Manajemen state aplikasi dan dependency injection.*
+*   **ONNX Runtime**: Client-side execution engine for the on-device Depth Anything V2 model.
+    *   *Engine eksekusi client-side untuk menjalankan model AI Depth Anything V2 secara offline.*
+*   **FFmpeg Kit**: On-device video encoding and frame compilation.
+    *   *Encoding video dan kompilasi frame langsung di dalam perangkat mobile.*
+*   **Dio**: High-performance HTTP client for multipart uploads to the backend.
+    *   *Client HTTP untuk mengunggah file gambar ke server backend.*
+
+### Web & Backend API
+*   **Next.js 15**: React framework for the web editor interface.
+    *   *Framework React untuk membangun antarmuka editor berbasis web.*
+*   **FastAPI**: Modern, high-performance Python web framework for the AI pipeline API.
+    *   *Framework web Python berkinerja tinggi untuk melayani API pipeline AI.*
+*   **PyTorch**: Deep learning framework powering depth estimation and synthesis models on the server.
+    *   *Framework deep learning untuk menjalankan estimasi kedalaman dan model sintesis pada server.*
+*   **Turborepo**: Monorepo orchestration tool for JS/TS applications and shared configurations.
+    *   *Alat orkestrasi monorepo untuk manajemen aplikasi JS/TS dan konfigurasi bersama.*
+
+---
+
 ## Technical Pipeline / Alur Teknis AI
 
 Both platforms process input photos through the following pipeline:
