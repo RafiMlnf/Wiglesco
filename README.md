@@ -119,6 +119,22 @@ flutter pub get
 
 ---
 
+## Monetization & Authentication / Monetisasi & Otentikasi
+
+Wiglesco Mobile features a premium, region-aware subscription and secure authentication flow:
+*   **Google OAuth Authentication:** Users can log in using Google OAuth (`google_sign_in`). Secure token handshakes with the Python FastAPI backend verify the user's identity and synchronize render quota and subscription status.
+*   **Region-Aware Pricing Localization:** The app automatically detects device locale (`Platform.localeName`) to adjust currency and regional price tiers:
+    *   **Indonesia (Rupiah):** **Rp 15.000 / month** or **Rp 99.000 / year** (Saves 45% over monthly).
+    *   **Global (USD):** **$0.99 / month** or **$6.99 / year**.
+*   **Quota Gatekeeping:** Free/anonymous tiers are limited to **3 server renders**. Reaching this threshold prompts a premium glassmorphic paywall with shimmering gold border animations to unlock unlimited features.
+
+*Wiglesco Mobile mendukung integrasi monetisasi berbasis wilayah dan otentikasi Google OAuth secara aman:*
+*   *Otentikasi Google OAuth untuk menyinkronkan data riwayat render dan status premium pengguna ke backend FastAPI.*
+*   *Harga bulanan disesuaikan otomatis: Rp 15.000/bulan & Rp 99.000/tahun untuk Indonesia, dan $0.99/bulan & $6.99/tahun untuk pasar internasional.*
+*   *Batasan gratis hingga 3 kali render di Server Mode sebelum diarahkan ke halaman paywall premium.*
+
+---
+
 ## License / Lisensi
 
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
