@@ -57,6 +57,12 @@ dependencies:
   # Icons (built-in via flutter)
   cupertino_icons: ^1.0.8
 
+  # Authentication
+  google_sign_in: ^6.2.1
+
+dependency_overrides:
+  path_provider_android: ">=2.2.0 <2.3.0"
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -100,6 +100,20 @@ class OnDevicePipeline {
       frames = pingPong;
     }
 
+    // Ensure the exported video is at least 2 seconds long for mobile gallery compatibility
+    if (exportFormat.toLowerCase() == 'mp4') {
+      final targetDurationSeconds = 2.0;
+      final singleLoopDuration = frames.length / fps;
+      if (singleLoopDuration < targetDurationSeconds) {
+        final numLoops = (targetDurationSeconds / singleLoopDuration).ceil();
+        final loopedFrames = <img.Image>[];
+        for (int l = 0; l < numLoops; l++) {
+          loopedFrames.addAll(frames);
+        }
+        frames = loopedFrames;
+      }
+    }
+
     // ── Step 4: Style / Enhancement ───────────────────────────
     onProgress?.call(kPipelineSteps[3], 3, kPipelineSteps.length);
     frames = _style.applyStyle(frames, effectStyle);

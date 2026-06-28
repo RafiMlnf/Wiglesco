@@ -8,6 +8,7 @@ import 'package:shimmer/shimmer.dart';
 import '../core/theme.dart';
 import '../providers/editor_provider.dart';
 import '../providers/history_provider.dart';
+import '../providers/premium_provider.dart';
 import '../models/history_item.dart';
 import '../widgets/common/loading_overlay.dart';
 import '../widgets/editor/control_panel.dart';
@@ -139,7 +140,50 @@ class EditorScreen extends ConsumerWidget {
             child: _RenderButton(
               enabled: state.selectedImage != null && !state.isLoading,
               isLoading: state.isLoading,
-              onTap: () => notifier.render(),
+              onTap: () {
+                final premium = ref.read(premiumProvider);
+                final history = ref.read(historyProvider);
+                
+                // Gate: if not premium and history is >= 3 items, show paywall!
+                if (!premium.isPremium && history.length >= 3) {
+                  showDialog(
+                    context: context,
+                    builder: (dialogContext) => AlertDialog(
+                      backgroundColor: AppColors.surfaceElevated,
+                      title: const Row(
+                        children: [
+                          Icon(Icons.workspace_premium_rounded, color: Colors.amber),
+                          SizedBox(width: 10),
+                          Text('Free Limit Reached', style: TextStyle(color: Colors.white)),
+                        ],
+                      ),
+                      content: const Text(
+                        'You have reached the daily limit of 3 free 3D parallax renders. Upgrade to Premium for unlimited generations and super fast cloud processing!',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text('Maybe Later', style: TextStyle(color: AppColors.textSecondary)),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                          ),
+                          onPressed: () {
+                            Navigator.pop(dialogContext);
+                            context.push('/paywall');
+                          },
+                          child: const Text('Upgrade Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  );
+                } else {
+                  notifier.render();
+                }
+              },
             ),
           ),
 

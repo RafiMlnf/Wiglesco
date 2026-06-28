@@ -17,70 +17,103 @@ class HistoryScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Row(
-          children: [
-            const Text('History'),
-            const SizedBox(width: 8),
-            if (history.isNotEmpty)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(2),
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 48, 20, 16),
+                child: Row(
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (bounds) => const LinearGradient(
+                        colors: [
+                          AppColors.gradientStart,
+                          AppColors.gradientEnd
+                        ],
+                      ).createShader(bounds),
+                      child: const Text(
+                        'History',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (history.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        child: Text(
+                          '${history.length}',
+                          style: const TextStyle(
+                            color: AppColors.primaryLight,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        tooltip: 'Clear All',
+                        onPressed: () => _confirmClear(context, ref),
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                child: Text(
-                  '${history.length}',
-                  style: const TextStyle(
-                    color: AppColors.primaryLight,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (history.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _EmptyState(),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 0.8,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) {
+                      final item = history[i];
+                      return _HistoryCard(
+                        key: ValueKey(item.id),
+                        item: item,
+                        index: i,
+                        onTap: () => context.push('/result', extra: item),
+                        onDelete: () =>
+                            ref.read(historyProvider.notifier).removeItem(item.id),
+                      );
+                    },
+                    childCount: history.length,
                   ),
                 ),
               ),
           ],
         ),
-        actions: [
-          if (history.isNotEmpty)
-            TextButton(
-              onPressed: () => _confirmClear(context, ref),
-              child: const Text(
-                'Clear All',
-                style: TextStyle(color: AppColors.error, fontSize: 13),
-              ),
-            ),
-        ],
       ),
-      body: history.isEmpty
-          ? _EmptyState()
-          : GridView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 110),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 0.8,
-              ),
-              itemCount: history.length,
-              itemBuilder: (context, i) {
-                final item = history[i];
-                return _HistoryCard(
-                  item: item,
-                  index: i,
-                  onTap: () => context.push('/result', extra: item),
-                  onDelete: () =>
-                      ref.read(historyProvider.notifier).removeItem(item.id),
-                );
-              },
-            ),
     );
   }
 
   void _confirmClear(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
         title: const Text('Clear History',
             style: TextStyle(color: AppColors.textPrimary)),
@@ -88,14 +121,16 @@ class HistoryScreen extends ConsumerWidget {
             style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel',
                 style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () {
-              ref.read(historyProvider.notifier).clearAll();
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ref.read(historyProvider.notifier).clearAll();
+              });
             },
             child: const Text('Delete All',
                 style: TextStyle(color: AppColors.error)),
@@ -113,6 +148,7 @@ class _HistoryCard extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _HistoryCard({
+    super.key,
     required this.item,
     required this.index,
     required this.onTap,
@@ -202,7 +238,7 @@ class _HistoryCard extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.zero,
       ),
-      builder: (_) => Column(
+      builder: (sheetContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
@@ -220,8 +256,10 @@ class _HistoryCard extends StatelessWidget {
             title: const Text('Open',
                 style: TextStyle(color: AppColors.textPrimary)),
             onTap: () {
-              Navigator.pop(context);
-              onTap();
+              Navigator.pop(sheetContext);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                onTap();
+              });
             },
           ),
           ListTile(
@@ -230,8 +268,10 @@ class _HistoryCard extends StatelessWidget {
             title: const Text('Delete',
                 style: TextStyle(color: AppColors.error)),
             onTap: () {
-              Navigator.pop(context);
-              onDelete();
+              Navigator.pop(sheetContext);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                onDelete();
+              });
             },
           ),
           const SizedBox(height: 16),

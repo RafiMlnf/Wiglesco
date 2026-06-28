@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import '../core/theme.dart';
 import '../providers/history_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/premium_provider.dart';
 
 final connectionTestProvider = StateProvider.autoDispose<String?>((ref) => null);
 final connectionTestingProvider = StateProvider.autoDispose<bool>((ref) => false);
@@ -41,19 +44,156 @@ class SettingsScreen extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final isTesting = ref.watch(connectionTestingProvider);
     final testResult = ref.watch(connectionTestProvider);
+    final auth = ref.watch(authProvider);
+    final premium = ref.watch(premiumProvider);
+
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (next.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Login failed: ${next.error}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        ref.read(authProvider.notifier).clearError();
+      }
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
-        children: [
-          // ── Mode Switcher Card ───────────────────────────────────────────
-          Container(
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 48, 20, 110),
+          children: [
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [
+                  AppColors.gradientStart,
+                  AppColors.gradientEnd
+                ],
+              ).createShader(bounds),
+              child: const Text(
+                'Settings',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ── Account / Authentication Section ──────────────────────────────
+            _SectionHeader('Account'),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(2),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: auth.isLoggedIn
+                  ? Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: AppColors.surfaceElevated,
+                          backgroundImage: auth.photoUrl != null
+                              ? NetworkImage(auth.photoUrl!)
+                              : null,
+                          child: auth.photoUrl == null
+                              ? Text(
+                                  (auth.displayName ?? auth.email ?? '?')[0]
+                                      .toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                auth.displayName ?? 'Google User',
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                auth.email ?? '',
+                                style: const TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.logout_rounded,
+                              color: AppColors.error, size: 20),
+                          onPressed: () => ref.read(authProvider.notifier).signOut(),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Sign in to synchronize your history and access cloud server processing.',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 42,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: () => ref.read(authProvider.notifier).signIn(),
+                            icon: Image.network(
+                              'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/24px-Google_%22G%22_logo.svg.png',
+                              height: 18,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(Icons.login, color: Colors.black),
+                            ),
+                            label: const Text(
+                              'Sign In with Google',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 24),
+
+            // ── Mode Switcher Card ───────────────────────────────────────────
+            Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.zero,
               border: Border.all(color: AppColors.border),
             ),
             child: Column(
@@ -286,41 +426,58 @@ class SettingsScreen extends ConsumerWidget {
 
           const SizedBox(height: 24),
 
-          // ── Pipeline Info ────────────────────────────────────────────────
-          _SectionHeader('AI Pipeline'),
+          // ── Premium Membership ──────────────────────────────────────────
+          _SectionHeader('Premium'),
           const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(2),
               border: Border.all(color: AppColors.border),
             ),
-            child: Column(
-              children: [
-                _PipelineStep(
-                    icon: Icons.image_outlined,
-                    label: 'Preprocess',
-                    detail: 'Resize to 512px (Dart)'),
-                _PipelineStep(
-                    icon: Icons.view_in_ar_rounded,
-                    label: 'Depth Estimation',
-                    detail: 'Depth Anything V2 Small (ONNX Runtime)'),
-                _PipelineStep(
-                    icon: Icons.animation_rounded,
-                    label: 'Parallax Synthesis',
-                    detail: "3D warp + Painter's Algorithm (Dart)"),
-                _PipelineStep(
-                    icon: Icons.auto_awesome_rounded,
-                    label: 'Style Effects',
-                    detail: 'Color grading · Grain · Vignette (Dart)'),
-                _PipelineStep(
-                    icon: Icons.video_file_rounded,
-                    label: 'Video Export',
-                    detail: 'MP4 / GIF (FFmpeg Kit)',
-                    isLast: true),
-              ],
-            ),
+            child: premium.isPremium
+                ? ListTile(
+                    leading: const Icon(Icons.workspace_premium_rounded,
+                        color: Colors.amber, size: 24),
+                    title: const Text(
+                      'Wiglesco Premium Active',
+                      style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      'Active plan: ${premium.activePackageId == "wiglesco_premium_yearly" ? "Yearly Pass" : "Monthly Access"}',
+                      style: const TextStyle(
+                          color: AppColors.textMuted, fontSize: 12),
+                    ),
+                    trailing: TextButton(
+                      onPressed: () => ref
+                          .read(premiumProvider.notifier)
+                          .debugResetSubscription(),
+                      child: const Text(
+                        'Debug Reset',
+                        style: TextStyle(color: AppColors.error, fontSize: 11),
+                      ),
+                    ),
+                  )
+                : ListTile(
+                    leading: const Icon(Icons.star_border_rounded,
+                        color: AppColors.textMuted, size: 24),
+                    title: const Text(
+                      'Upgrade to Premium',
+                      style: TextStyle(
+                          color: AppColors.textPrimary, fontSize: 14),
+                    ),
+                    subtitle: const Text(
+                      'Unlock unlimited high-speed cloud renders',
+                      style: TextStyle(
+                          color: AppColors.textMuted, fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded,
+                        color: AppColors.textMuted, size: 14),
+                    onTap: () => context.push('/paywall'),
+                  ),
           ),
 
           const SizedBox(height: 24),
@@ -373,13 +530,14 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _confirmClearHistory(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
         title: const Text('Clear History',
             style: TextStyle(color: AppColors.textPrimary)),
@@ -387,14 +545,16 @@ class SettingsScreen extends ConsumerWidget {
             style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel',
                 style: TextStyle(color: AppColors.textSecondary)),
           ),
           TextButton(
             onPressed: () {
-              ref.read(historyProvider.notifier).clearAll();
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                ref.read(historyProvider.notifier).clearAll();
+              });
             },
             child:
                 const Text('Delete', style: TextStyle(color: AppColors.error)),
@@ -422,47 +582,7 @@ class _SectionHeader extends StatelessWidget {
       );
 }
 
-class _PipelineStep extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String detail;
-  final bool isLast;
-  const _PipelineStep(
-      {required this.icon,
-      required this.label,
-      required this.detail,
-      this.isLast = false});
 
-  @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                Icon(icon, color: AppColors.primaryLight, size: 18),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(label,
-                          style: const TextStyle(
-                              color: AppColors.textPrimary, fontSize: 13,
-                              fontWeight: FontWeight.w500)),
-                      Text(detail,
-                          style: const TextStyle(
-                              color: AppColors.textMuted, fontSize: 11)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (!isLast) const Divider(color: AppColors.border, height: 1),
-        ],
-      );
-}
 
 class _AboutRow extends StatelessWidget {
   final String label;

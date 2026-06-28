@@ -18,15 +18,15 @@ class OnDeviceExportService {
     final framesDir = Directory('${dir.path}/frames_$sessionId');
     await framesDir.create();
 
-    // ── 1. Write frames as PNG to temp dir ───────────────────
+    // ── 1. Write frames as JPEG to temp dir ───────────────────
     for (int i = 0; i < frames.length; i++) {
-      final pngBytes = img.encodePng(frames[i]);
-      final framePath = '${framesDir.path}/frame_${i.toString().padLeft(4, '0')}.png';
-      await File(framePath).writeAsBytes(pngBytes);
+      final jpgBytes = img.encodeJpg(frames[i], quality: 95);
+      final framePath = '${framesDir.path}/frame_${i.toString().padLeft(4, '0')}.jpg';
+      await File(framePath).writeAsBytes(jpgBytes);
     }
 
     final outputPath = '${dir.path}/wiglesco_$sessionId.$format';
-    final inputPattern = '${framesDir.path}/frame_%04d.png';
+    final inputPattern = '${framesDir.path}/frame_%04d.jpg';
 
     // ── 2. Build FFmpeg command ───────────────────────────────
     final String cmd;
@@ -45,7 +45,7 @@ class OnDeviceExportService {
         // scale=trunc(iw/2)*2:trunc(ih/2)*2 ensures width and height are divisible by 2 (required by yuv420p)
         cmd = '-y -framerate $fps -i "$inputPattern" '
             '-vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" '
-            '-c:v libx264 -pix_fmt yuv420p -preset superfast -crf 17 '
+            '-c:v libx264 -pix_fmt yuv420p -preset superfast -crf 17 -movflags +faststart '
             '"$outputPath"';
         break;
     }

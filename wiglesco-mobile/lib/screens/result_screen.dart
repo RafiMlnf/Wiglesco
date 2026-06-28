@@ -41,6 +41,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen>
   Future<void> _initVideo() async {
     final item = widget.item;
     final String path = item.outputPath;
+    if (item.format.toLowerCase() == 'gif' || path.toLowerCase().endsWith('.gif')) {
+      return; // Natively rendered as animated image, no video player controller needed
+    }
 
     // Local file
     _videoController = VideoPlayerController.file(File(path));
@@ -49,7 +52,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen>
       _videoController!.setLooping(true);
       _videoController!.play();
     } catch (e) {
-      // GIF: show static thumbnail instead
+      // Fallback
     }
     if (mounted) setState(() {});
   }
@@ -63,6 +66,11 @@ class _ResultScreenState extends ConsumerState<ResultScreen>
 
   Future<void> _saveToGallery() async {
     setState(() => _isSaving = true);
+    final wasPlaying = _videoController?.value.isPlaying ?? false;
+    if (wasPlaying) {
+      await _videoController?.pause();
+    }
+
     try {
       final hasAccess = await Gal.hasAccess(toAlbum: false);
       if (!hasAccess) await Gal.requestAccess(toAlbum: false);
@@ -89,6 +97,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen>
         );
       }
     } finally {
+      if (wasPlaying && mounted) {
+        _videoController?.play();
+      }
       if (mounted) setState(() => _isSaving = false);
     }
   }
@@ -230,6 +241,18 @@ class _ResultScreenState extends ConsumerState<ResultScreen>
   }
 
   Widget _buildPreview() {
+    final item = widget.item;
+    final path = item.outputPath;
+    if (item.format.toLowerCase() == 'gif' || path.toLowerCase().endsWith('.gif')) {
+      if (File(path).existsSync()) {
+        return Image.file(
+          File(path),
+          fit: BoxFit.contain,
+          gaplessPlayback: true,
+        );
+      }
+    }
+
     if (_videoController?.value.isInitialized == true) {
       return GestureDetector(
         onTap: () {
@@ -322,7 +345,9 @@ class _ActionButton extends StatelessWidget {
                     colors: [AppColors.gradientStart, AppColors.gradientEnd],
                   )
                 : null,
-            color: primary ? null : AppColors.surfaceElevated,
+            color: primary
+                ? (onTap == null ? Colors.white24 : null)
+                : AppColors.surfaceElevated,
             borderRadius: BorderRadius.circular(2),
             border: Border.all(
                 color: primary ? Colors.transparent : AppColors.border),
@@ -331,12 +356,16 @@ class _ActionButton extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon,
-                  color: onTap != null ? Colors.white : AppColors.textMuted,
+                  color: onTap != null
+                      ? (primary ? Colors.black : Colors.white)
+                      : (primary ? Colors.white38 : AppColors.textMuted),
                   size: 20),
               const SizedBox(height: 2),
               Text(label,
                   style: TextStyle(
-                    color: onTap != null ? Colors.white : AppColors.textMuted,
+                    color: onTap != null
+                        ? (primary ? Colors.black : Colors.white)
+                        : (primary ? Colors.white38 : AppColors.textMuted),
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
                   )),

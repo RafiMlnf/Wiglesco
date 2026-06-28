@@ -32,9 +32,14 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+
+            // Disable R8 minification — required because R8 aggressively strips
+            // Pigeon-generated plugin bridge classes (path_provider, etc.)
+            // causing PlatformException channel-error crashes at startup.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

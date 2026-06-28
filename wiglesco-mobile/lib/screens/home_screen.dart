@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,7 +26,7 @@ class HomeScreen extends ConsumerWidget {
             // ── Header ──────────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 48, 20, 0),
                 child: Row(
                   children: [
                     Column(
@@ -57,32 +58,13 @@ class HomeScreen extends ConsumerWidget {
                       ],
                     ),
                     const Spacer(),
-                    // Serverless badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(2),
-                        border: Border.all(
-                            color: AppColors.success.withOpacity(0.3)),
+                    // Premium Gold Crown Icon/Button
+                    IconButton(
+                      icon: const CustomCrownIcon(
+                        size: 26,
+                        color: Colors.amber,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.offline_bolt_rounded,
-                              size: 12, color: AppColors.success),
-                          const SizedBox(width: 5),
-                          Text(
-                            'On-Device',
-                            style: TextStyle(
-                              color: AppColors.success,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                      onPressed: () => context.push('/paywall'),
                     ),
                   ],
                 ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1),
@@ -116,6 +98,8 @@ class HomeScreen extends ConsumerWidget {
                 ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1),
               ),
             ),
+
+
 
             // ── Recent History ───────────────────────────────────────────────
             if (history.isNotEmpty) ...[
@@ -282,7 +266,7 @@ class _PickButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(16);
+    final borderRadius = BorderRadius.zero;
 
     return GestureDetector(
       onTap: onTap,
@@ -368,3 +352,28 @@ class _PickButton extends StatelessWidget {
     );
   }
 }
+
+class CustomCrownIcon extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const CustomCrownIcon({
+    super.key,
+    this.size = 28.0,
+    this.color = Colors.amber,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/images/crown.png',
+      width: size,
+      height: size,
+      color: color,
+      colorBlendMode: BlendMode.srcIn,
+    );
+  }
+}
+
+
+

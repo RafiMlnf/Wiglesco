@@ -519,6 +519,10 @@ flutter run
 | Android permissions | `READ_MEDIA_IMAGES` (Android 13+) vs `READ_EXTERNAL_STORAGE` (older) |
 | Release signing | Jangan commit `key.properties` dan `.jks` ke git |
 | `flutter doctor` | Pastikan semua ✅ sebelum mulai (terutama Android toolchain) |
+| Video MP4 Broken di Galeri | Tambahkan `-movflags +faststart` dan buat loop minimum 2 detik agar dibaca valid oleh Android MediaStore |
+| File Locking saat Save | Jeda `VideoPlayerController` sementara saat menyimpan ke galeri untuk menghindari lock file |
+| Crash JNI di Release Build | Downgrade `path_provider_android` ke `2.2.x` untuk bypass bug `package:jni` |
+| Stuck Blank di Release Build | Nonaktifkan R8 minification (`isMinifyEnabled = false`) di `build.gradle.kts` untuk mencegah penghapusan class Pigeon/JNI dinamis |
 
 ---
 
@@ -537,4 +541,57 @@ flutter run
 | Phase 4: Navigation (GoRouter) | ✅ Done | 2026-06-28 |
 | Phase 5: UI Polish & Animations | 🔲 Planned | - |
 | Phase 6A: Debug APK Build | ✅ Done — app-debug.apk | 2026-06-28 |
-| Phase 6B: Release APK Build | 🔲 Planned | - |
+| Phase 6B: Release APK Build | ✅ Done — app-release.apk | 2026-06-28 |
+| Phase 7: Google OAuth (Auth) | 🟡 In Progress | - |
+| Phase 8: Monetization & Pricing | 🟡 In Progress | - |
+| Phase 9: Production Release | 🔲 Planned | - |
+
+---
+
+## Phase 7: Google OAuth (Authentication)
+
+- [x] **Setup Google Cloud Console Project**:
+  - Buat project baru di Google Cloud Console.
+  - Tambahkan Android client credential (`com.wiglesco.wiglesco_mobile`).
+  - Daftarkan SHA-1 fingerprint dari Keystore Debug.
+- [x] **Install & Konfigurasi Flutter Packages**:
+  - Tambahkan dependensi `google_sign_in: ^6.2.1` ke `pubspec.yaml`.
+- [x] **Integrasi Auth State (Riverpod)**:
+  - Buat `lib/providers/auth_provider.dart`.
+  - State berisi status login (email, nama, foto profil, dan token ID JWT).
+- [x] **UI Integration**:
+  - Tampilkan tombol login Google dan kartu profil di `lib/screens/settings_screen.dart`.
+- [ ] **Backend Authentication Verification**:
+  - Kirim Google ID Token (JWT) dari Flutter ke FastAPI Backend di header request (`Authorization: Bearer <token>`).
+  - Di Backend, verifikasi token Google menggunakan library `google-auth-library` untuk memastikan user valid sebelum mengizinkan pemrosesan AI.
+
+---
+
+## Phase 8: Monetization & Pricing (Subscriptions / IAP)
+
+- [ ] **Setup Merchant Account**:
+  - Hubungkan Google Play Console Anda dengan Google Payments Merchant Account.
+  - Daftarkan produk langganan / subscription (misal: Premium Bulanan/Tahunan) di Google Play Console dengan ID produk (misal: `wiglesco_premium_monthly`).
+- [x] **Pilih & Integrasikan SDK Pembayaran**:
+  - Membuat kerangka provider premium dan alur simulasi belanja.
+- [x] **Buat Premium Paywall Screen**:
+  - Membuat `lib/screens/paywall_screen.dart` dengan daftar benefit dan opsi pembelian premium.
+- [x] **Sync Status User (Premium vs Free)**:
+  - Membuat `lib/providers/premium_provider.dart` dan membatasi ekspor di editor jika user free sudah mencapai limit (3 render).
+- [ ] **Backend Webhooks Integration (Opsional)**:
+  - Setup webhook dari RevenueCat atau Google Play ke FastAPI backend untuk mencatat transaksi dan memperbarui database user premium.
+
+---
+
+## Phase 9: Production Release & Store Submission
+
+- [ ] **Keystore & Security Setup**:
+  - Konfigurasi `signingConfigs` asli untuk Release build di `build.gradle.kts` (jangan gunakan debug keys untuk Play Store).
+- [ ] **Buat Aset Rilis Play Store**:
+  - Feature Graphic (1024x500).
+  - App Screenshots (minimal 4 screenshot berukuran ponsel).
+  - Deskripsi Singkat & Deskripsi Lengkap aplikasi.
+- [ ] **Submit ke Google Play Console**:
+  - Buat aplikasi baru di konsol pengembang, upload App Bundle (.aab).
+  - Lakukan rilis internal testing → open beta → production.
+

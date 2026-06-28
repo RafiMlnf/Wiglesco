@@ -2,12 +2,14 @@ import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 import '../models/history_item.dart';
 import '../screens/home_screen.dart';
 import '../screens/editor_screen.dart';
 import '../screens/result_screen.dart';
 import '../screens/history_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/paywall_screen.dart';
 import '../core/theme.dart';
 
 final appRouter = GoRouter(
@@ -41,6 +43,10 @@ final appRouter = GoRouter(
         final item = state.extra as HistoryItem;
         return ResultScreen(item: item);
       },
+    ),
+    GoRoute(
+      path: '/paywall',
+      builder: (context, state) => const PaywallScreen(),
     ),
   ],
 );
@@ -101,8 +107,9 @@ class _FloatingNavBar extends StatefulWidget {
 }
 
 class _FloatingNavBarState extends State<_FloatingNavBar>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
+  late AnimationController _idleController;
   int _prevIndex = 0;
   int _currentIndex = 0;
 
@@ -134,9 +141,13 @@ class _FloatingNavBarState extends State<_FloatingNavBar>
     _prevIndex = widget.selectedIndex;
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 480), // Smooth stretching duration
+      duration: const Duration(milliseconds: 600), // Smooth stretching duration (0.6s)
     );
     _controller.value = 1.0; // start fully animated
+    _idleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
   }
 
   @override
@@ -154,6 +165,7 @@ class _FloatingNavBarState extends State<_FloatingNavBar>
   @override
   void dispose() {
     _controller.dispose();
+    _idleController.dispose();
     super.dispose();
   }
 
@@ -190,20 +202,39 @@ class _FloatingNavBarState extends State<_FloatingNavBar>
 
                         // Leading edge moves first, trailing edge starts when leading is almost done
                         final Curve leftCurve = movingRight
-                            ? const Interval(0.45, 1.0, curve: Curves.easeInOutCubic)
-                            : const Interval(0.0, 0.55, curve: Curves.easeInOutCubic);
+                            ? const Interval(0.45, 1.0, curve: Curves.easeInOutSine)
+                            : const Interval(0.0, 0.55, curve: Curves.easeInOutSine);
 
                         final Curve rightCurve = movingRight
-                            ? const Interval(0.0, 0.55, curve: Curves.easeInOutCubic)
-                            : const Interval(0.45, 1.0, curve: Curves.easeInOutCubic);
+                            ? const Interval(0.0, 0.55, curve: Curves.easeInOutSine)
+                            : const Interval(0.45, 1.0, curve: Curves.easeInOutSine);
 
                         return Stack(
                           children: [
                             // ── Sliding Stretching Pill ──
                             AnimatedBuilder(
-                              animation: _controller,
+                              animation: Listenable.merge([_controller, _idleController]),
                               builder: (context, child) {
                                 final t = _controller.value;
+                                final idleVal = _idleController.value;
+
+                                // Balloon-like vertical swelling in the middle of transition
+                                final swell = math.sin(t * math.pi);
+                                final baseHeight = pillHeight + (swell * 8.0);
+
+                                // Idle weight (1.0 at rest, 0.0 in the middle of transition)
+                                final idleWeight = (1.0 - swell).clamp(0.0, 1.0);
+
+                                // Smooth sinusoidal idle floating wiggles (horizontal & vertical)
+                                final idleX = (math.sin(idleVal * 2.0 * math.pi) * 2.0 +
+                                        math.cos(idleVal * 3.0 * math.pi) * 0.8) *
+                                    idleWeight;
+                                final idleY = (math.cos(idleVal * 2.0 * math.pi) * 1.5 +
+                                        math.sin(idleVal * 4.0 * math.pi) * 0.5) *
+                                    idleWeight;
+
+                                final currentHeight = baseHeight +
+                                    (math.sin(idleVal * 2.0 * math.pi) * 1.2 * idleWeight);
 
                                 final leftStart = _prevIndex * tabWidth + (tabWidth - pillWidth) / 2;
                                 final leftTarget = _currentIndex * tabWidth + (tabWidth - pillWidth) / 2;
@@ -212,23 +243,25 @@ class _FloatingNavBarState extends State<_FloatingNavBar>
                                 final rightTarget = (2 - _currentIndex) * tabWidth + (tabWidth - pillWidth) / 2;
 
                                 final currentLeft = leftStart +
-                                    (leftTarget - leftStart) * leftCurve.transform(t);
+                                    (leftTarget - leftStart) * leftCurve.transform(t) +
+                                    idleX;
                                 final currentRight = rightStart +
-                                    (rightTarget - rightStart) * rightCurve.transform(t);
+                                    (rightTarget - rightStart) * rightCurve.transform(t) -
+                                    idleX;
 
                                 return Positioned(
                                   left: currentLeft,
                                   right: currentRight,
-                                  top: (56.0 - pillHeight) / 2,
-                                  height: pillHeight,
+                                  top: (56.0 - currentHeight) / 2 + idleY,
+                                  height: currentHeight,
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      // Frosted active indicator
-                                      color: Colors.white.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(23), // Perfect circle at rest, oval when stretched
+                                      // Frosted active indicator swells/opacity pulses
+                                      color: Colors.white.withOpacity(0.12 + swell * 0.08),
+                                      borderRadius: BorderRadius.circular(currentHeight / 2),
                                       border: Border.all(
-                                        color: Colors.white.withOpacity(0.24),
-                                        width: 1,
+                                        color: Colors.white.withOpacity(0.24 + swell * 0.16),
+                                        width: 1.0 + swell * 0.5,
                                       ),
                                     ),
                                   ),
@@ -319,6 +352,26 @@ class _GlassShell extends StatelessWidget {
       child: Stack(
         fit: StackFit.passthrough,
         children: [
+          // ── Shimmering Light Sweep ──
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Shimmer.fromColors(
+                baseColor: Colors.transparent,
+                highlightColor: Colors.white.withOpacity(0.08),
+                period: const Duration(seconds: 4),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(40),
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 1.2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
           // ── Adaptive Frosted Noise Overlay ──
           Positioned.fill(
             child: CustomPaint(
