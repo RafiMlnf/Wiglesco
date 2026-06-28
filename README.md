@@ -1,4 +1,4 @@
-# Wiglesco — Monorepo
+# Wiglesco - Monorepo
 
 Wiglesco is an AI-powered Wiggle 3D, Stereogram, and Lenticular photo effect application. This repository contains both the web portal & API backend and the premium cross-platform Flutter mobile client. It transforms a single photo into an animated 3D perspective parallax video, simulating the iconic look of 4-lens film cameras like the Nishika N8000.
 
