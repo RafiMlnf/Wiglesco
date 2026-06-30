@@ -92,17 +92,13 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Shimmer.fromColors(
-                              baseColor: const Color(0xFFFFD700), // Gold
-                              highlightColor: const Color(0xFFFFFDF0), // Shiny light gold
-                              child: const Text(
-                                'Wiglesco Premium',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.5,
-                                ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Wiglesco Premium',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                             ),
                             const SizedBox(height: 4),

@@ -17,14 +17,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.4.1"
-  analyzer_plugin:
-    dependency: transitive
-    description:
-      name: analyzer_plugin
-      sha256: "9661b30b13a685efaee9f02e5d01ed9f2b423bd889d28a304d02d704aee69161"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.11.3"
   archive:
     dependency: transitive
     description:
@@ -209,14 +201,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.9"
-  custom_lint_core:
-    dependency: transitive
-    description:
-      name: custom_lint_core
-      sha256: a85e8f78f4c52f6c63cdaf8c872eb573db0231dcdf3c3a5906d493c1f8bc20e6
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.3"
   dart_style:
     dependency: transitive
     description:
@@ -257,22 +241,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
-  ffmpeg_kit_flutter_new:
-    dependency: "direct main"
-    description:
-      name: ffmpeg_kit_flutter_new
-      sha256: "213ca74666ce8aa01fdaa77adc40444e9ef39e140b264747787bb0555da06783"
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.2.1"
-  ffmpeg_kit_flutter_platform_interface:
-    dependency: transitive
-    description:
-      name: ffmpeg_kit_flutter_platform_interface
-      sha256: addf046ae44e190ad0101b2fde2ad909a3cd08a2a109f6106d2f7048b7abedee
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.1"
   file:
     dependency: transitive
     description:
@@ -358,6 +326,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.35"
+  flutter_quick_video_encoder:
+    dependency: "direct main"
+    description:
+      name: flutter_quick_video_encoder
+      sha256: "7e36d4e0172efec2237478270751b1aff5556c866316feac514b1137ce5f8501"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.7.2"
   flutter_riverpod:
     dependency: "direct main"
     description:
@@ -384,14 +360,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  freezed_annotation:
-    dependency: transitive
-    description:
-      name: freezed_annotation
-      sha256: c2e2d632dd9b8a2b7751117abcfc2b4888ecfe181bd9fca7170d9ef02e595fe2
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.4.4"
   frontend_server_client:
     dependency: transitive
     description:
@@ -792,54 +760,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
-  permission_handler:
-    dependency: "direct main"
-    description:
-      name: permission_handler
-      sha256: "59adad729136f01ea9e35a48f5d1395e25cba6cea552249ddbe9cf950f5d7849"
-      url: "https://pub.dev"
-    source: hosted
-    version: "11.4.0"
-  permission_handler_android:
-    dependency: transitive
-    description:
-      name: permission_handler_android
-      sha256: d3971dcdd76182a0c198c096b5db2f0884b0d4196723d21a866fc4cdea057ebc
-      url: "https://pub.dev"
-    source: hosted
-    version: "12.1.0"
-  permission_handler_apple:
-    dependency: transitive
-    description:
-      name: permission_handler_apple
-      sha256: "79dfa1df734798aa3cfdad166d3a3698c206d8813de13516ea1071b5d7e2f420"
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.4.10"
-  permission_handler_html:
-    dependency: transitive
-    description:
-      name: permission_handler_html
-      sha256: "38f000e83355abb3392140f6bc3030660cfaef189e1f87824facb76300b4ff24"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.3+5"
-  permission_handler_platform_interface:
-    dependency: transitive
-    description:
-      name: permission_handler_platform_interface
-      sha256: eb99b295153abce5d683cac8c02e22faab63e50679b937fa1bf67d58bb282878
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.3.0"
-  permission_handler_windows:
-    dependency: transitive
-    description:
-      name: permission_handler_windows
-      sha256: "1a790728016f79a41216d88672dbc5df30e686e811ad4e698bfc51f76ad91f1e"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.1"
   petitparser:
     dependency: transitive
     description:
@@ -912,30 +832,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.6.1"
-  riverpod_analyzer_utils:
-    dependency: transitive
-    description:
-      name: riverpod_analyzer_utils
-      sha256: "8b71f03fc47ae27d13769496a1746332df4cec43918aeba9aff1e232783a780f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.5.1"
-  riverpod_annotation:
-    dependency: "direct main"
-    description:
-      name: riverpod_annotation
-      sha256: e14b0bf45b71326654e2705d462f21b958f987087be850afd60578fcd502d1b8
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.6.1"
-  riverpod_generator:
-    dependency: "direct dev"
-    description:
-      name: riverpod_generator
-      sha256: d451608bf17a372025fc36058863737636625dfdb7e3cbf6142e0dfeb366ab22
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.4.0"
   share_plus:
     dependency: "direct main"
     description:

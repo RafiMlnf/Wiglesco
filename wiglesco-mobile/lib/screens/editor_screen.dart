@@ -18,9 +18,6 @@ class EditorScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(editorProvider);
-    final notifier = ref.read(editorProvider.notifier);
-
     // Navigate to result when processing completes
     ref.listen<EditorState>(editorProvider, (prev, next) {
       if (prev?.isLoading == true && !next.isLoading && next.result != null) {
@@ -53,12 +50,17 @@ class EditorScreen extends ConsumerWidget {
         ),
         title: const Text('Editor'),
         actions: [
-          if (state.error != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Icon(Icons.warning_amber_rounded,
-                  color: AppColors.error, size: 20),
-            ),
+          Consumer(
+            builder: (context, ref, child) {
+              final hasError = ref.watch(editorProvider.select((s) => s.error != null));
+              if (!hasError) return const SizedBox.shrink();
+              return const Padding(
+                padding: EdgeInsets.only(right: 12),
+                child: Icon(Icons.warning_amber_rounded,
+                    color: AppColors.error, size: 20),
+              );
+            },
+          ),
         ],
       ),
       body: Stack(
@@ -67,62 +69,78 @@ class EditorScreen extends ConsumerWidget {
             slivers: [
               // ── Image Preview ───────────────────────────────────────────
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: AspectRatio(
-                      aspectRatio: 4 / 3,
-                      child: state.selectedImage != null
-                          ? Image.file(
-                              File(state.selectedImage!.path),
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              color: AppColors.surface,
-                              child: const Icon(Icons.image_outlined,
-                                  size: 48, color: AppColors.textMuted),
-                            ),
-                    ),
-                  ).animate().fadeIn(duration: 300.ms),
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final selectedImage = ref.watch(editorProvider.select((s) => s.selectedImage));
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: AspectRatio(
+                          aspectRatio: 4 / 3,
+                          child: selectedImage != null
+                              ? Image.file(
+                                  File(selectedImage.path),
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  color: AppColors.surface,
+                                  child: const Icon(Icons.image_outlined,
+                                      size: 48, color: AppColors.textMuted),
+                                ),
+                        ),
+                      ).animate(key: ValueKey(selectedImage?.path)).fadeIn(duration: 300.ms),
+                    );
+                  },
                 ),
               ),
 
               // ── Error Banner ────────────────────────────────────────────
-              if (state.error != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(2),
-                        border: Border.all(color: AppColors.error.withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline,
-                              color: AppColors.error, size: 18),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              state.error!,
-                              style: const TextStyle(
-                                color: AppColors.error,
-                                fontSize: 13,
+              SliverToBoxAdapter(
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final error = ref.watch(editorProvider.select((s) => s.error));
+                    if (error == null) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(2),
+                          border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline,
+                                color: AppColors.error, size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                error,
+                                style: const TextStyle(
+                                  color: AppColors.error,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ).animate().shakeX(),
-                  ),
+                          ],
+                        ),
+                      ).animate(key: ValueKey(error)).shakeX(),
+                    );
+                  },
                 ),
+              ),
 
               // ── Controls ────────────────────────────────────────────────
               SliverToBoxAdapter(
-                child: ControlPanel(state: state, notifier: notifier),
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final state = ref.watch(editorProvider);
+                    final notifier = ref.read(editorProvider.notifier);
+                    return ControlPanel(state: state, notifier: notifier);
+                  },
+                ),
               ),
 
               // Bottom spacing to prevent floating button overlaying content
@@ -137,62 +155,75 @@ class EditorScreen extends ConsumerWidget {
             left: 16,
             right: 16,
             bottom: 24,
-            child: _RenderButton(
-              enabled: state.selectedImage != null && !state.isLoading,
-              isLoading: state.isLoading,
-              onTap: () {
-                final premium = ref.read(premiumProvider);
-                final history = ref.read(historyProvider);
-                
-                // Gate: if not premium and history is >= 3 items, show paywall!
-                if (!premium.isPremium && history.length >= 3) {
-                  showDialog(
-                    context: context,
-                    builder: (dialogContext) => AlertDialog(
-                      backgroundColor: AppColors.surfaceElevated,
-                      title: const Row(
-                        children: [
-                          Icon(Icons.workspace_premium_rounded, color: Colors.amber),
-                          SizedBox(width: 10),
-                          Text('Free Limit Reached', style: TextStyle(color: Colors.white)),
-                        ],
-                      ),
-                      content: const Text(
-                        'You have reached the daily limit of 3 free 3D parallax renders. Upgrade to Premium for unlimited generations and super fast cloud processing!',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          child: const Text('Maybe Later', style: TextStyle(color: AppColors.textSecondary)),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
+            child: Consumer(
+              builder: (context, ref, child) {
+                final enabled = ref.watch(editorProvider.select((s) => s.selectedImage != null && !s.isLoading));
+                final isLoading = ref.watch(editorProvider.select((s) => s.isLoading));
+                return _RenderButton(
+                  enabled: enabled,
+                  isLoading: isLoading,
+                  onTap: () {
+                    final premium = ref.read(premiumProvider);
+                    final history = ref.read(historyProvider);
+                    
+                    // Gate: if not premium and history is >= 3 items, show paywall!
+                    if (!premium.isPremium && history.length >= 3) {
+                      showDialog(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          backgroundColor: AppColors.surfaceElevated,
+                          title: const Row(
+                            children: [
+                              Icon(Icons.workspace_premium_rounded, color: Colors.amber),
+                              SizedBox(width: 10),
+                              Text('Free Limit Reached', style: TextStyle(color: Colors.white)),
+                            ],
                           ),
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            context.push('/paywall');
-                          },
-                          child: const Text('Upgrade Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                          content: const Text(
+                            'You have reached the daily limit of 3 free 3D parallax renders. Upgrade to Premium for unlimited generations and super fast cloud processing!',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext),
+                              child: const Text('Maybe Later', style: TextStyle(color: AppColors.textSecondary)),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black,
+                              ),
+                              onPressed: () {
+                                Navigator.pop(dialogContext);
+                                context.push('/paywall');
+                              },
+                              child: const Text('Upgrade Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                } else {
-                  notifier.render();
-                }
+                      );
+                    } else {
+                      ref.read(editorProvider.notifier).render();
+                    }
+                  },
+                );
               },
             ),
           ),
 
           // ── Loading Overlay ─────────────────────────────────────────────
-          if (state.isLoading)
-            LoadingOverlay(
-              currentStep: state.currentStep,
-              currentStepIndex: state.currentStepIndex,
-            ),
+          Consumer(
+            builder: (context, ref, child) {
+              final isLoading = ref.watch(editorProvider.select((s) => s.isLoading));
+              if (!isLoading) return const SizedBox.shrink();
+              final currentStep = ref.watch(editorProvider.select((s) => s.currentStep));
+              final currentStepIndex = ref.watch(editorProvider.select((s) => s.currentStepIndex));
+              return LoadingOverlay(
+                currentStep: currentStep,
+                currentStepIndex: currentStepIndex,
+              );
+            },
+          ),
         ],
       ),
     );

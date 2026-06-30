@@ -70,8 +70,25 @@ class OnDevicePipeline {
     onProgress?.call(kPipelineSteps[0], 0, kPipelineSteps.length);
 
     final imageBytes = await File(imagePath).readAsBytes();
-    img.Image? srcImage = img.decodeImage(imageBytes);
-    if (srcImage == null) throw Exception('Cannot decode image');
+    img.Image? decodedImage = img.decodeImage(imageBytes);
+    if (decodedImage == null) throw Exception('Cannot decode image');
+
+    // Resize to 1080p (max dimension 1920) to ensure fast processing and encoding
+    final maxDimension = 1920;
+    img.Image srcImage = decodedImage;
+    if (decodedImage.width > maxDimension || decodedImage.height > maxDimension) {
+      final double ratio = decodedImage.width / decodedImage.height;
+      final int targetWidth;
+      final int targetHeight;
+      if (decodedImage.width > decodedImage.height) {
+        targetWidth = maxDimension;
+        targetHeight = (maxDimension / ratio).round();
+      } else {
+        targetHeight = maxDimension;
+        targetWidth = (maxDimension * ratio).round();
+      }
+      srcImage = img.copyResize(decodedImage, width: targetWidth, height: targetHeight, interpolation: img.Interpolation.linear);
+    }
 
 
 

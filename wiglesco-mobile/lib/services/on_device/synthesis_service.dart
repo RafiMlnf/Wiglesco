@@ -230,57 +230,102 @@ class OnDeviceSynthesisService {
 
   /// Appends a box blur/smoothing filter to the Float32List depth map.
   /// This mirrors OpenCV's bilateral/Gaussian blur to prevent pixel tearing.
+  /// Optimasi: Separable Box Blur (1D horizontal pass lalu 1D vertical pass)
+  /// Mengurangi lookup array dari 25x menjadi hanya 10x per piksel.
   static Float64List _blurDepthMap(Float32List depth, int W, int H) {
+    final temp = Float32List(W * H);
     final blurred = Float64List(W * H);
-    const r = 2; // 5x5 window (radius 2)
+    const r = 4; // radius 4 (9x9 filter equivalent) to prevent slicing/tearing glitches
+
+    // Pass 1: Horizontal Box Blur
     for (int y = 0; y < H; y++) {
+      final int rowOffset = y * W;
+      for (int x = 0; x < W; x++) {
+        double sum = 0;
+        int count = 0;
+        for (int dx = -r; dx <= r; dx++) {
+          final nx = x + dx;
+          if (nx >= 0 && nx < W) {
+            sum += depth[rowOffset + nx];
+            count++;
+          }
+        }
+        temp[rowOffset + x] = (sum / count).toDouble();
+      }
+    }
+
+    // Pass 2: Vertical Box Blur
+    for (int y = 0; y < H; y++) {
+      final int rowOffset = y * W;
       for (int x = 0; x < W; x++) {
         double sum = 0;
         int count = 0;
         for (int dy = -r; dy <= r; dy++) {
           final ny = y + dy;
-          if (ny < 0 || ny >= H) continue;
-          for (int dx = -r; dx <= r; dx++) {
-            final nx = x + dx;
-            if (nx < 0 || nx >= W) continue;
-            sum += depth[ny * W + nx];
+          if (ny >= 0 && ny < H) {
+            sum += temp[ny * W + x];
             count++;
           }
         }
-        blurred[y * W + x] = sum / count;
+        blurred[rowOffset + x] = sum / count;
       }
     }
+
     return blurred;
   }
 
   /// Fill empty pixels (where z-buffer is still infinity) with nearby color.
-  /// Simple inpaint: nearest neighbor from a small search radius.
+  /// Blends 50% from the foreground boundary pixels (min Z) and 50% from the background pixels (max Z)
+  /// to create a balanced fill without hard stretch artifacts.
   static Uint8List _fillHoles(Uint8List canvas, Float64List zBuffer, int W, int H) {
     final result = Uint8List.fromList(canvas);
-    const searchRadius = 5;
+    const searchRadius = 6;
 
     for (int y = 0; y < H; y++) {
       for (int x = 0; x < W; x++) {
         final idx = y * W + x;
         if (zBuffer[idx] < double.infinity) continue; // already filled
 
-        // Search neighbors
-        bool found = false;
-        for (int r = 1; r <= searchRadius && !found; r++) {
-          for (int dy = -r; dy <= r && !found; dy++) {
-            for (int dx = -r; dx <= r && !found; dx++) {
-              if (dy.abs() != r && dx.abs() != r) continue; // only border of ring
-              final ny = y + dy;
-              final nx = x + dx;
-              if (ny < 0 || ny >= H || nx < 0 || nx >= W) continue;
-              final ni = ny * W + nx;
-              if (zBuffer[ni] < double.infinity) {
-                result[idx * 3]     = canvas[ni * 3];
-                result[idx * 3 + 1] = canvas[ni * 3 + 1];
-                result[idx * 3 + 2] = canvas[ni * 3 + 2];
-                found = true;
+        int fgIdx = -1;
+        int bgIdx = -1;
+        double minZ = double.infinity;
+        double maxZ = -double.infinity;
+
+        // Search in a window around the empty pixel
+        for (int dy = -searchRadius; dy <= searchRadius; dy++) {
+          final ny = y + dy;
+          if (ny < 0 || ny >= H) continue;
+
+          for (int dx = -searchRadius; dx <= searchRadius; dx++) {
+            final nx = x + dx;
+            if (nx < 0 || nx >= W) continue;
+
+            final ni = ny * W + nx;
+            final z = zBuffer[ni];
+            if (z < double.infinity) {
+              if (z < minZ) {
+                minZ = z;
+                fgIdx = ni;
+              }
+              if (z > maxZ) {
+                maxZ = z;
+                bgIdx = ni;
               }
             }
+          }
+        }
+
+        if (fgIdx != -1 && bgIdx != -1) {
+          // If we found distinct layers (foreground vs background), blend them 50:50
+          if (maxZ - minZ > 0.1) {
+            result[idx * 3]     = ((canvas[fgIdx * 3] + canvas[bgIdx * 3]) ~/ 2);
+            result[idx * 3 + 1] = ((canvas[fgIdx * 3 + 1] + canvas[bgIdx * 3 + 1]) ~/ 2);
+            result[idx * 3 + 2] = ((canvas[fgIdx * 3 + 2] + canvas[bgIdx * 3 + 2]) ~/ 2);
+          } else {
+            // Otherwise, just use the closest (foreground) neighbor
+            result[idx * 3]     = canvas[fgIdx * 3];
+            result[idx * 3 + 1] = canvas[fgIdx * 3 + 1];
+            result[idx * 3 + 2] = canvas[fgIdx * 3 + 2];
           }
         }
       }

@@ -1,11 +1,11 @@
 import 'dart:io';
-import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new/return_code.dart';
+import 'package:flutter_quick_video_encoder/flutter_quick_video_encoder.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
-/// Encodes a list of img.Image frames into video using FFmpeg Kit.
-/// Supports: MP4, GIF.
+/// Encodes a list of img.Image frames into video.
+/// Supports: MP4 (via native Hardware-Accelerated MediaCodec/AVFoundation),
+/// and GIF (via pure Dart GifEncoder).
 class OnDeviceExportService {
   /// Encode frames and return path to output file.
   Future<String> exportFrames({
@@ -15,54 +15,71 @@ class OnDeviceExportService {
   }) async {
     final dir = await getTemporaryDirectory();
     final sessionId = DateTime.now().millisecondsSinceEpoch;
-    final framesDir = Directory('${dir.path}/frames_$sessionId');
-    await framesDir.create();
-
-    // ── 1. Write frames as JPEG to temp dir ───────────────────
-    for (int i = 0; i < frames.length; i++) {
-      final jpgBytes = img.encodeJpg(frames[i], quality: 95);
-      final framePath = '${framesDir.path}/frame_${i.toString().padLeft(4, '0')}.jpg';
-      await File(framePath).writeAsBytes(jpgBytes);
-    }
-
     final outputPath = '${dir.path}/wiglesco_$sessionId.$format';
-    final inputPattern = '${framesDir.path}/frame_%04d.jpg';
 
-    // ── 2. Build FFmpeg command ───────────────────────────────
-    final String cmd;
-    switch (format) {
-      case 'gif':
-        // High-quality GIF with palette
-        cmd = '-y -framerate $fps -i "$inputPattern" '
-            '-vf "fps=$fps,scale=${frames[0].width}:-1:flags=lanczos,'
-            'split[a][b];[a]palettegen[p];[b][p]paletteuse" '
-            '"$outputPath"';
-        break;
-
-      case 'mp4':
-      default:
-        // H.264 MP4 — compatible with most Android players & social media
-        // scale=trunc(iw/2)*2:trunc(ih/2)*2 ensures width and height are divisible by 2 (required by yuv420p)
-        cmd = '-y -framerate $fps -i "$inputPattern" '
-            '-vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" '
-            '-c:v libx264 -pix_fmt yuv420p -preset superfast -crf 17 -movflags +faststart '
-            '"$outputPath"';
-        break;
+    if (frames.isEmpty) {
+      throw ArgumentError('Frames list cannot be empty');
     }
 
-    // ── 3. Execute FFmpeg ─────────────────────────────────────
-    final session = await FFmpegKit.execute(cmd);
-    final returnCode = await session.getReturnCode();
+    final width = frames[0].width;
+    final height = frames[0].height;
 
-    // Cleanup frame files
-    await framesDir.delete(recursive: true);
+    // Ensure width and height are even numbers (required by many video encoders)
+    final evenWidth = (width % 2 == 0) ? width : width - 1;
+    final evenHeight = (height % 2 == 0) ? height : height - 1;
 
-    if (!ReturnCode.isSuccess(returnCode)) {
-      final logs = await session.getAllLogsAsString();
-      print('=== FFmpeg kit execution failed! ===');
-      print(logs);
-      print('=====================================');
-      throw Exception('FFmpeg failed. Check terminal logs for details.');
+    if (format.toLowerCase() == 'gif') {
+      // ── 1. Pure Dart GIF Encoding (No disk I/O, no FFmpeg) ────────────────
+      final encoder = img.GifEncoder();
+      
+      // Duration per frame is in centiseconds (1/100th of a second)
+      final frameDurationCentiseconds = 100 ~/ fps;
+
+      for (final frame in frames) {
+        encoder.addFrame(frame, duration: frameDurationCentiseconds);
+      }
+
+      final gifBytes = encoder.finish();
+      if (gifBytes == null) {
+        throw Exception('Failed to encode GIF animation.');
+      }
+
+      await File(outputPath).writeAsBytes(gifBytes);
+    } else {
+      // Calculate bitrate dynamically based on pixel count and FPS
+      // Rule of thumb: 0.12 bits per pixel per frame.
+      // e.g. 1080p @ 30fps = ~7.4 Mbps.
+      // for 3060x4080 @ 9fps = ~13.4 Mbps.
+      final calculatedBitrate = (evenWidth * evenHeight * fps * 0.12).round();
+      final dynamicBitrate = calculatedBitrate.clamp(2000000, 25000000);
+
+      // ── 2. Hardware-Accelerated MP4 Encoding (No disk I/O, no FFmpeg) ─────
+      await FlutterQuickVideoEncoder.setup(
+        width: evenWidth,
+        height: evenHeight,
+        fps: fps,
+        videoBitrate: dynamicBitrate,
+        profileLevel: ProfileLevel.any,
+        audioChannels: 0,
+        audioBitrate: 0,
+        sampleRate: 0,
+        filepath: outputPath,
+      );
+
+      try {
+        for (final frame in frames) {
+          // Resize if width/height are odd to ensure even dimensions
+          final processedFrame = (frame.width == evenWidth && frame.height == evenHeight)
+              ? frame
+              : img.copyResize(frame, width: evenWidth, height: evenHeight);
+
+          // Get raw RGBA bytes directly from RAM
+          final rgbaBytes = processedFrame.getBytes(order: img.ChannelOrder.rgba);
+          await FlutterQuickVideoEncoder.appendVideoFrame(rgbaBytes);
+        }
+      } finally {
+        await FlutterQuickVideoEncoder.finish();
+      }
     }
 
     return outputPath;

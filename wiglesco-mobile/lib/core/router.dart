@@ -10,25 +10,46 @@ import '../screens/result_screen.dart';
 import '../screens/history_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/paywall_screen.dart';
+import '../screens/filter_editor/filter_editor_screen.dart';
 import '../core/theme.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
-    ShellRoute(
-      builder: (context, state, child) => _ScaffoldWithNavBar(child: child),
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => const HomeScreen(),
+    StatefulShellRoute(
+      builder: (context, state, navigationShell) {
+        return _ScaffoldWithNavBar(navigationShell: navigationShell);
+      },
+      navigatorContainerBuilder: (context, navigationShell, children) {
+        return AnimatedBranchContainer(
+          currentIndex: navigationShell.currentIndex,
+          children: children,
+        );
+      },
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) => const HomeScreen(),
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/history',
-          builder: (context, state) => const HistoryScreen(),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/history',
+              builder: (context, state) => const HistoryScreen(),
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/settings',
-          builder: (context, state) => const SettingsScreen(),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/settings',
+              builder: (context, state) => const SettingsScreen(),
+            ),
+          ],
         ),
       ],
     ),
@@ -48,44 +69,90 @@ final appRouter = GoRouter(
       path: '/paywall',
       builder: (context, state) => const PaywallScreen(),
     ),
+    GoRoute(
+      path: '/filter-editor',
+      builder: (context, state) => const FilterEditorScreen(),
+    ),
   ],
 );
 
 // ── Shell Scaffold ─────────────────────────────────────────────────────────────
 
 class _ScaffoldWithNavBar extends StatelessWidget {
-  final Widget child;
-  const _ScaffoldWithNavBar({super.key, required this.child});
-
-  int _locationToIndex(BuildContext context) {
-    final location = GoRouterState.of(context).uri.path;
-    if (location.startsWith('/history')) return 1;
-    if (location.startsWith('/settings')) return 2;
-    return 0;
-  }
+  final StatefulNavigationShell navigationShell;
+  const _ScaffoldWithNavBar({super.key, required this.navigationShell});
 
   @override
   Widget build(BuildContext context) {
-    final selectedIndex = _locationToIndex(context);
+    final selectedIndex = navigationShell.currentIndex;
     return Scaffold(
       extendBody: true, // allows content to go under the floating bar
-      body: child,
-      bottomNavigationBar: _FloatingNavBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
-          switch (index) {
-            case 0:
-              context.go('/');
-              break;
-            case 1:
-              context.go('/history');
-              break;
-            case 2:
-              context.go('/settings');
-              break;
-          }
-        },
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: navigationShell,
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _FloatingNavBar(
+              selectedIndex: selectedIndex,
+              onDestinationSelected: (index) {
+                navigationShell.goBranch(
+                  index,
+                  initialLocation: index == navigationShell.currentIndex,
+                );
+              },
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+// ── Animated Branch Container for Slide Transitions ───────────────────────────
+
+class AnimatedBranchContainer extends StatelessWidget {
+  final int currentIndex;
+  final List<Widget> children;
+
+  const AnimatedBranchContainer({
+    super.key,
+    required this.currentIndex,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: List.generate(children.length, (index) {
+        final active = index == currentIndex;
+
+        // Define slide offset: active is Offset.zero, others slide left or right
+        final Offset slideOffset;
+        if (active) {
+          slideOffset = Offset.zero;
+        } else if (index < currentIndex) {
+          slideOffset = const Offset(-1.0, 0.0); // slides left
+        } else {
+          slideOffset = const Offset(1.0, 0.0); // slides right
+        }
+
+        return AnimatedSlide(
+          offset: slideOffset,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOutCubic,
+          child: IgnorePointer(
+            ignoring: !active,
+            child: TickerMode(
+              enabled: active,
+              child: children[index],
+            ),
+          ),
+        );
+      }),
     );
   }
 }

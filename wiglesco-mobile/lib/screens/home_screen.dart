@@ -9,6 +9,7 @@ import 'package:shimmer/shimmer.dart';
 import '../core/theme.dart';
 import '../providers/editor_provider.dart';
 import '../providers/history_provider.dart';
+import 'filter_editor/filter_editor_provider.dart';
 import '../models/history_item.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -93,6 +94,14 @@ class HomeScreen extends ConsumerWidget {
                       hasShimmer: false,
                       onTap: () =>
                           _pickImage(context, ref, ImageSource.camera),
+                    ),
+                    const SizedBox(height: 12),
+                    _PickButton(
+                      icon: Icons.color_lens_rounded,
+                      label: 'Filter Editor',
+                      subtitle: 'Olise · Nostalgic · Dreamy',
+                      hasShimmer: false,
+                      onTap: () => _openFilterEditor(context),
                     ),
                   ],
                 ).animate().fadeIn(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1),
@@ -244,6 +253,10 @@ class HomeScreen extends ConsumerWidget {
     if (picked == null) return;
     ref.read(editorProvider.notifier).setImage(picked);
     if (context.mounted) context.push('/editor');
+  }
+
+  void _openFilterEditor(BuildContext context) {
+    context.push('/filter-editor');
   }
 }
 

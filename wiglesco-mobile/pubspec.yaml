@@ -12,7 +12,6 @@ dependencies:
 
   # State management
   flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.4.0
 
   # Navigation
   go_router: ^14.6.2
@@ -27,9 +26,8 @@ dependencies:
   # Pure Dart image processing (parallax synthesis, style effects)
   image: ^4.2.0
 
-  # Video encoding (MP4, GIF, WebP) tanpa server
-  # Gunakan full_gpl untuk support libx264 (MP4)
-  ffmpeg_kit_flutter_new: ^4.2.1
+  # Video encoding (MP4, GIF) tanpa server menggunakan hardware-accelerated encoder
+  flutter_quick_video_encoder: ^1.0.3
 
   # Camera & Media
   image_picker: ^1.1.2
@@ -45,9 +43,6 @@ dependencies:
   # Local Storage
   shared_preferences: ^2.3.3
   hive_flutter: ^1.1.0
-
-  # Permissions
-  permission_handler: ^11.3.1
 
   # UI Helpers
   flutter_animate: ^4.5.2
@@ -68,7 +63,6 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   build_runner: ^2.4.13
-  riverpod_generator: ^2.4.0
   hive_generator: ^2.0.1
 
 flutter:
